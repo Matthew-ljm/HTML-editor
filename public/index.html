@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>实时协作编辑器</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+  <style>
+    body { font-family: Arial; max-width: 800px; margin: 0 auto; }
+    #editor { height: 60vh; border: 1px solid #ddd; }
+    #online-users { background: #f5f5f5; padding: 10px; }
+  </style>
+</head>
+<body>
+  <div id="auth">
+    <h2>登录</h2>
+    <input type="text" id="username" placeholder="用户名">
+    <input type="password" id="password" placeholder="密码">
+    <button onclick="login()">登录</button>
+  </div>
+
+  <div id="editor-container" style="display: none;">
+    <div id="online-users">在线用户: 加载中...</div>
+    <div id="editor"></div>
+    <div id="status"></div>
+  </div>
+
+<script>
+// 配置 Supabase（替换成你的信息）
+const supabase = createClient(
+  "https://lonfebjqggtocthftsck.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+);
+
+let editor;
+
+// 登录函数
+async function login() {
+  const username = document.getElementById('username').value;
+  const { error } = await supabase.auth.signInWithPassword({
+    email: `${username}@codework.com`, // 模拟邮箱
+    password: document.getElementById('password').value
+  });
+
+  if (!error) {
+    document.getElementById('auth').style.display = 'none';
+    document.getElementById('editor-container').style.display = 'block';
+    initEditor();
+  } else {
+    alert("登录失败: " + error.message);
+  }
+}
+
+// 初始化编辑器
+function initEditor() {
+  editor = CodeMirror(document.getElementById('editor'), {
+    mode: 'htmlmixed',
+    lineNumbers: true,
+    value: '<h1>开始编辑...</h1>'
+  });
+
+  // 实时同步
+  supabase.channel('doc-updates')
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'documents'
+    }, (payload) => {
+      if (payload.new.content !== editor.getValue()) {
+        editor.setValue(payload.new.content);
+      }
+    })
+    .subscribe();
+
+  // 每3秒保存一次
+  setInterval(saveContent, 3000);
+}
+
+// 保存内容
+async function saveContent() {
+  const { data: { user } } = await supabase.auth.getUser();
+  await supabase.from('documents').upsert({
+    id: 'shared-doc',
+    content: editor.getValue(),
+    last_editor: user.id
+  });
+}
+</script>
+</body>
+</html>
