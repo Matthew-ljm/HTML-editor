@@ -207,19 +207,19 @@
         </form>
         
         <div class="footer">
-            <p>使用Supabase进行身份验证 | <a href="#">忘记密码?</a></p>
-            <p>© 2023 M-Code协作编辑器 | 仅供教育使用</p>
+            <p>使用Supabase进行身份验证 | <a href="forget.html">忘记密码?</a></p>
+            <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
 
+    <script src="https://unpkg.com/supabase@1.35.7/dist/supabase-js.js"></script>
     <script>
-        // Supabase初始化配置
-        const SUPABASE_URL = 'https://lonfebjqggtocthftsck.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvbmZlYmpxZ2d0b2N0aGZ0c2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNDk0NzAsImV4cCI6MjA2MzkyNTQ3MH0.tj41oe8iu4nnvMWbotKw6tv_GrhWCTYaUIXgzY9mwj0';
-        
+        // 初始化 Supabase
+        const SUPABASE_URL = 'https://your-project.supabase.co';
+        const SUPABASE_KEY = 'your-anon-key';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
-        // 登录表单处理
+
+        // 登录处理
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -235,7 +235,6 @@
             }
             
             try {
-                // 在Supabase中验证用户
                 const { data: users, error } = await supabase
                     .from('users')
                     .select('*')
@@ -247,7 +246,6 @@
                 if (users.length === 0) {
                     errorElement.textContent = '用户名或密码错误';
                 } else {
-                    // 登录成功，重定向到code.html并传递用户名
                     window.location.href = `code.html?username=${encodeURIComponent(username)}`;
                 }
             } catch (err) {
