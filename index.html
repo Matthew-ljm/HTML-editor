@@ -212,11 +212,13 @@
             <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
-    <script>
+<script>
+    // 等待页面和所有资源加载完成
+    window.addEventListener('DOMContentLoaded', () => {
         // 初始化 Supabase
         const SUPABASE_URL = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // 登录处理
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -252,6 +254,7 @@
                 errorElement.textContent = '登录失败，请稍后再试';
             }
         });
-    </script>
+    });
+</script>
 </body>
 </html>
