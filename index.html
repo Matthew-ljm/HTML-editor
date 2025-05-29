@@ -1,111 +1,260 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>实时协作编辑器</title>
-  <!-- 只保留一种加载方式 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
-  <style>
-    body { font-family: Arial; max-width: 800px; margin: 0 auto; }
-    #editor { height: 60vh; border: 1px solid #ddd; }
-    #online-users { background: #f5f5f5; padding: 10px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-Code协作编辑器 - 登录</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/supabase@1.35.7/dist/supabase-js.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #4ade80;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #4ade80, #22d3ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+        
+        input {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            background: rgba(30, 41, 59, 0.7);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #4ade80;
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
+        }
+        
+        .tip {
+            background: rgba(74, 222, 128, 0.15);
+            border-left: 4px solid #4ade80;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: left;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(to right, #0ea5e9, #4ade80);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .error {
+            color: #f87171;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .footer a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 20px;
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="auth">
-    <h2>登录</h2>
-    <input type="text" id="username" placeholder="用户名">
-    <input type="password" id="password" placeholder="密码">
-    <button id="login-btn">登录</button> <!-- 改为事件监听方式 -->
-  </div>
+    <div class="container">
+        <div class="logo">
+            <i class="fas fa-code"></i>
+        </div>
+        <h1>M-Code协作编辑器</h1>
+        <h2>登录</h2>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" name="username" placeholder="请输入您的姓名" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="请输入您的学号" required>
+                </div>
+            </div>
+            
+            <div class="tip">
+                <i class="fas fa-info-circle"></i> 提示：用户名为您的姓名，密码为您的学号
+            </div>
+            
+            <button type="submit">
+                <i class="fas fa-sign-in-alt"></i> 登录
+            </button>
+            
+            <div id="errorMessage" class="error"></div>
+        </form>
+        
+        <div class="footer">
+            <p>使用Supabase进行身份验证 | <a href="#">忘记密码?</a></p>
+            <p>© 2023 M-Code协作编辑器 | 仅供教育使用</p>
+        </div>
+    </div>
 
-  <div id="editor-container" style="display: none;">
-    <div id="online-users">在线用户: 加载中...</div>
-    <div id="editor"></div>
-    <div id="status"></div>
-  </div>
-
-<script>
-// 全局初始化（确保在最顶部）
-const supabase = createClient(
-  "https://lonfebjqggtocthftsck.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-);
-
-let editor;
-
-// DOM加载完成后执行
-document.addEventListener('DOMContentLoaded', () => {
-  // 改用事件监听替代onclick
-  document.getElementById('login-btn').addEventListener('click', login);
-});
-
-async function login() {
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-  
-  try {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: `${username}@codework.com`,
-      password: password
-    });
-
-    if (error) throw error;
-    
-    document.getElementById('auth').style.display = 'none';
-    document.getElementById('editor-container').style.display = 'block';
-    initEditor();
-  } catch (error) {
-    alert("登录失败: " + error.message);
-    console.error(error);
-  }
-}
-
-function initEditor() {
-  editor = CodeMirror(document.getElementById('editor'), {
-    mode: 'htmlmixed',
-    lineNumbers: true,
-    value: '<h1>开始编辑...</h1>'
-  });
-
-  // 实时同步
-  const channel = supabase.channel('doc-updates')
-    .on('postgres_changes', {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'documents',
-      filter: 'id=eq.shared-doc'
-    }, (payload) => {
-      if (payload.new.last_editor !== supabase.auth.user()?.id) {
-        editor.setValue(payload.new.content);
-      }
-    })
-    .subscribe();
-
-  // 保存逻辑
-  editor.on('change', () => {
-    debounceSave();
-  });
-}
-
-// 防抖保存
-let saveTimeout;
-function debounceSave() {
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(async () => {
-    try {
-      await supabase.from('documents').upsert({
-        id: 'shared-doc',
-        content: editor.getValue(),
-        last_editor: supabase.auth.user()?.id
-      });
-    } catch (error) {
-      console.error('保存失败:', error);
-    }
-  }, 1000);
-}
-</script>
+    <script>
+        // Supabase初始化配置
+        const SUPABASE_URL = 'https://lonfebjqggtocthftsck.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvbmZlYmpxZ2d0b2N0aGZ0c2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzNDk0NzAsImV4cCI6MjA2MzkyNTQ3MH0.tj41oe8iu4nnvMWbotKw6tv_GrhWCTYaUIXgzY9mwj0';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // 登录表单处理
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorElement = document.getElementById('errorMessage');
+            
+            errorElement.textContent = '';
+            
+            if (!username || !password) {
+                errorElement.textContent = '用户名和密码不能为空';
+                return;
+            }
+            
+            try {
+                // 在Supabase中验证用户
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('name', username)
+                    .eq('student_id', password);
+                
+                if (error) throw error;
+                
+                if (users.length === 0) {
+                    errorElement.textContent = '用户名或密码错误';
+                } else {
+                    // 登录成功，重定向到code.html并传递用户名
+                    window.location.href = `code.html?username=${encodeURIComponent(username)}`;
+                }
+            } catch (err) {
+                console.error('登录错误:', err);
+                errorElement.textContent = '登录失败，请稍后再试';
+            }
+        });
+    </script>
 </body>
 </html>

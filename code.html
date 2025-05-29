@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-Code协作编辑器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 40px;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        .success-icon {
+            font-size: 5rem;
+            color: #4ade80;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #4ade80;
+        }
+        
+        .welcome-message {
+            font-size: 1.5rem;
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(74, 222, 128, 0.15);
+            border-radius: 10px;
+            border-left: 4px solid #4ade80;
+        }
+        
+        .editor-preview {
+            background: #0f172a;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: left;
+            margin-top: 30px;
+            border: 1px solid #334155;
+        }
+        
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            margin-bottom: 15px;
+            color: #94a3b8;
+        }
+        
+        .code {
+            font-family: 'Courier New', monospace;
+            color: #cbd5e1;
+            line-height: 1.6;
+        }
+        
+        .btn {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 12px 30px;
+            background: linear-gradient(to right, #0ea5e9, #4ade80);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h1>欢迎使用 M-Code</h1>
+        
+        <div class="welcome-message">
+            欢迎, <span id="username"></span>! 您已成功登录协作编辑器
+        </div>
+        
+        <div class="editor-preview">
+            <div class="editor-header">
+                <div>editor.js</div>
+                <div>JavaScript</div>
+            </div>
+            <div class="code">
+                <pre>// 协作编辑示例代码
+function welcomeUser(username) {
+  console.log(`欢迎 ${username} 加入协作编辑!`);
+  
+  // 实时协作功能
+  const editor = new CollaborativeEditor({
+    user: username,
+    theme: 'dark',
+    language: 'javascript'
+  });
+  
+  editor.init();
+}</pre>
+            </div>
+        </div>
+        
+        <a href="index.html" class="btn">
+            <i class="fas fa-arrow-left"></i> 返回登录
+        </a>
+    </div>
+
+    <script>
+        // 从URL参数中获取用户名
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('username');
+        
+        if (username) {
+            document.getElementById('username').textContent = decodeURIComponent(username);
+        } else {
+            // 如果没有用户名参数，重定向回登录页
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>
