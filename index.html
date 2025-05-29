@@ -200,7 +200,7 @@
                 <i class="fas fa-info-circle"></i> 提示：用户名为您的姓名，密码为您的学号
             </div>
             
-            <button type="submit">
+            <button type="submit" id="loginBtn">
                 <i class="fas fa-sign-in-alt"></i> 登录
             </button>
             
@@ -212,13 +212,12 @@
             <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
-<script>
-    // 等待页面和所有资源加载完成
-    window.addEventListener('DOMContentLoaded', () => {
-        // 初始化 Supabase
-        const SUPABASE_URL = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    <script>
+        // 初始化Supabase
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         // 登录处理
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -227,34 +226,53 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
             const errorElement = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('loginBtn');
             
+            // 显示加载状态
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
             errorElement.textContent = '';
             
-            if (!username || !password) {
-                errorElement.textContent = '用户名和密码不能为空';
-                return;
-            }
-            
             try {
-                const { data: users, error } = await supabase
+                // 使用自定义用户表验证
+                const { data: users, error: queryError } = await supabase
                     .from('users')
                     .select('*')
-                    .eq('name', username)
+                    .eq('username', username)
                     .eq('student_id', password);
                 
-                if (error) throw error;
+                if (queryError) throw queryError;
                 
                 if (users.length === 0) {
-                    errorElement.textContent = '用户名或密码错误';
-                } else {
-                    window.location.href = `code.html?username=${encodeURIComponent(username)}`;
+                    throw new Error('用户名或密码错误');
                 }
+                
+                // 使用Supabase Auth进行正式登录
+                const { error: authError } = await supabase.auth.signInWithPassword({
+                    email: `${users[0].id}@m-code.top`, // 使用唯一标识
+                    password: password
+                });
+                
+                if (authError) throw authError;
+                
+                // 登录成功后重定向
+                window.location.href = 'code.html';
+                
             } catch (err) {
                 console.error('登录错误:', err);
-                errorElement.textContent = '登录失败，请稍后再试';
+                errorElement.textContent = err.message || '登录失败，请稍后再试';
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
             }
         });
-    });
-</script>
+
+        // 检查是否已登录
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                window.location.href = 'code.html';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -130,22 +130,41 @@ function welcomeUser(username) {
             </div>
         </div>
         
-        <a href="index.html" class="btn">
-            <i class="fas fa-arrow-left"></i> 返回登录
-        </a>
+        <button id="logoutBtn" class="btn">
+            <i class="fas fa-sign-out-alt"></i> 退出登录
+        </button>
     </div>
 
     <script>
-        // 从URL参数中获取用户名
-        const urlParams = new URLSearchParams(window.location.search);
-        const username = urlParams.get('username');
+        // 初始化Supabase
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
         
-        if (username) {
-            document.getElementById('username').textContent = decodeURIComponent(username);
-        } else {
-            // 如果没有用户名参数，重定向回登录页
+        // 检查登录状态
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // 获取用户信息
+            supabase.from('users')
+                .select('username')
+                .eq('id', session.user.id)
+                .single()
+                .then(({ data: user }) => {
+                    if (user) {
+                        document.getElementById('username').textContent = user.username;
+                    }
+                });
+        });
+        
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            const { error } = await supabase.auth.signOut();
             window.location.href = 'index.html';
-        }
+        });
     </script>
 </body>
 </html>
