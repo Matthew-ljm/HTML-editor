@@ -191,23 +191,15 @@
             </div>
             
             <div class="form-group">
-                <label for="studentId">学号</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-id-card"></i>
-                    <input type="text" id="studentId" name="studentId" placeholder="请输入您的学号" required>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">密码</label>
+                <label for="studentId">密码</label>
                 <div class="input-with-icon">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="请设置密码" required>
+                    <input type="password" id="studentId" name="studentId" placeholder="请设置密码" required>
                 </div>
             </div>
             
             <div class="tip">
-                <i class="fas fa-info-circle"></i> 提示：请使用真实姓名和学号注册
+                <i class="fas fa-info-circle"></i> 提示：请使用真实姓名注册
             </div>
             
             <button type="submit" id="registerBtn">
@@ -264,46 +256,32 @@
                         e.preventDefault();
                         
                         const username = document.getElementById('username').value.trim();
-                        const studentId = document.getElementById('studentId').value.trim();
-                        const password = document.getElementById('password').value.trim();
+                        const password = document.getElementById('studentId').value.trim();
                         
                         registerBtn.disabled = true;
                         registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
                         errorElement.textContent = '';
                         
                         try {
-                            // 检查用户名或学号是否已存在
+                            // 检查用户名是否已存在
                             const { data: existingUsers, error: queryError } = await client
                                 .from('users')
                                 .select('*')
-                                .or(`username.eq.${username},student_id.eq.${studentId}`);
+                                .eq('username', username);
                             
                             if (queryError) throw queryError;
                             
                             if (existingUsers.length > 0) {
-                                throw new Error('用户名或学号已存在');
+                                throw new Error('用户名已存在');
                             }
-                            
-                            // 在用户表中创建记录
-                            const { data: newUser, error: insertError } = await client
-                                .from('users')
-                                .insert([{ 
-                                    username, 
-                                    student_id: studentId 
-                                }])
-                                .select()
-                                .single();
-                            
-                            if (insertError) throw insertError;
                             
                             // 使用Supabase Auth注册用户
                             const { error: authError } = await client.auth.signUp({
-                                email: `${newUser.id}@m-code.top`,
+                                email: `${username}@m-code.top`,
                                 password: password,
                                 options: { 
                                     data: { 
-                                        username,
-                                        student_id: studentId 
+                                        username
                                     } 
                                 }
                             });

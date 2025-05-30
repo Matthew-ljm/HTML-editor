@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code协作编辑器 - 登录</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="css/all.min.css">
-    <script src="js/supabase.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -192,12 +191,12 @@
                 <label for="password">密码</label>
                 <div class="input-with-icon">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="请输入您的学号" required>
+                    <input type="password" id="password" name="password" placeholder="请输入您的密码" required>
                 </div>
             </div>
             
             <div class="tip">
-                <i class="fas fa-info-circle"></i> 提示：用户名为您的姓名，密码为您的学号
+                <i class="fas fa-info-circle"></i> 提示：请使用您注册时的用户名和密码登录
             </div>
             
             <button type="submit" id="loginBtn">
@@ -208,72 +207,98 @@
         </form>
         
         <div class="footer">
-            <p>使用Supabase进行身份验证 | <a href="forget.html">忘记密码?</a></p>
+            <p>没有账号? <a href="register.html">立即注册</a></p>
             <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
 
+    <!-- 将Supabase脚本放在body最底部 -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
-        // 初始化Supabase
-        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // 检查是否已登录
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session) {
-                    window.location.href = 'code.html';
-                }
-            });
-
-            // 登录处理
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
+        // 确保Supabase库完全加载后再执行
+        function initApp() {
+            // 显示加载状态
+            const loginBtn = document.getElementById('loginBtn');
+            const errorElement = document.getElementById('errorMessage');
+            
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 初始化中...';
+            loginBtn.disabled = true;
+            
+            // 检查Supabase是否已加载
+            if (typeof supabase === 'undefined') {
+                errorElement.textContent = '系统正在加载，请稍候...';
+                setTimeout(initApp, 500); // 半秒后重试
+                return;
+            }
+            
+            try {
+                // 初始化Supabase客户端
+                const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+                const client = supabase.createClient(supabaseUrl, supabaseKey);
                 
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value.trim();
-                const errorElement = document.getElementById('errorMessage');
-                const loginBtn = document.getElementById('loginBtn');
-                
-                loginBtn.disabled = true;
-                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
-                errorElement.textContent = '';
-                
-                try {
-                    // 使用自定义用户表验证
-                    const { data: users, error: queryError } = await supabase
-                        .from('users')
-                        .select('*')
-                        .eq('username', username)
-                        .eq('student_id', password);
-                    
-                    if (queryError) throw queryError;
-                    
-                    if (users.length === 0) {
-                        throw new Error('用户名或密码错误');
+                // 检查会话
+                client.auth.getSession().then(({ data: { session } }) => {
+                    if (session) {
+                        window.location.href = 'code.html';
+                        return;
                     }
                     
-                    // 使用Supabase Auth进行正式登录
-                    const { error: authError } = await supabase.auth.signInWithPassword({
-                        email: `${users[0].id}@m-code.top`,
-                        password: password
-                    });
-                    
-                    if (authError) throw authError;
-                    
-                    // 重定向时不暴露任何用户信息
-                    window.location.href = 'code.html';
-                    
-                } catch (err) {
-                    console.error('登录错误:', err);
-                    errorElement.textContent = err.message || '登录失败，请稍后再试';
-                } finally {
-                    loginBtn.disabled = false;
+                    // 恢复按钮状态
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                }
-            });
-        });
+                    loginBtn.disabled = false;
+                    
+                    // 设置表单提交事件
+                    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        
+                        const username = document.getElementById('username').value.trim();
+                        const password = document.getElementById('password').value.trim();
+                        
+                        loginBtn.disabled = true;
+                        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+                        errorElement.textContent = '';
+                        
+                        try {
+                            // 使用Supabase Auth进行登录
+                            const { error: authError } = await client.auth.signInWithPassword({
+                                email: `${username}@m-code.top`,
+                                password: password
+                            });
+                            
+                            if (authError) throw authError;
+                            
+                            // 显示成功消息
+                            errorElement.textContent = '登录成功！正在跳转...';
+                            errorElement.style.color = '#4ade80';
+                            
+                            // 延迟跳转
+                            setTimeout(() => {
+                                window.location.href = 'code.html';
+                            }, 1500);
+                            
+                        } catch (err) {
+                            console.error('登录错误:', err);
+                            errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
+                            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+                            loginBtn.disabled = false;
+                        }
+                    });
+                }).catch(error => {
+                    console.error('会话检查错误:', error);
+                    errorElement.textContent = '系统初始化失败，请刷新页面';
+                    loginBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
+                });
+                
+            } catch (error) {
+                console.error('初始化错误:', error);
+                errorElement.textContent = '系统初始化失败，请刷新页面';
+                loginBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
+            }
+        }
+        
+        // 使用load事件确保所有资源已加载
+        window.addEventListener('load', initApp);
     </script>
 </body>
 </html>
