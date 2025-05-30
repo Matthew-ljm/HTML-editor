@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M-Code - 学生注册</title>
+    <title>M-Code协作编辑器 - 注册</title>
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <style>
         * {
             margin: 0;
@@ -15,7 +16,7 @@
         }
         
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -25,27 +26,35 @@
         
         .container {
             width: 100%;
-            max-width: 450px;
-            padding: 40px;
-            background: rgba(15, 23, 42, 0.9);
+            max-width: 400px;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.85);
             border-radius: 15px;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
             text-align: center;
         }
         
         .logo {
-            font-size: 3rem;
-            margin-bottom: 20px;
+            font-size: 2.5rem;
+            margin-bottom: 15px;
             color: #4ade80;
         }
         
         h1 {
-            font-size: 2rem;
+            font-size: 2.2rem;
             margin-bottom: 10px;
             background: linear-gradient(to right, #4ade80, #22d3ee);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            font-weight: 400;
+            color: #94a3b8;
         }
         
         .form-group {
@@ -60,9 +69,21 @@
             color: #e2e8f0;
         }
         
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+        
         input {
             width: 100%;
-            padding: 14px 20px;
+            padding: 14px 14px 14px 45px;
             border: 2px solid #334155;
             border-radius: 10px;
             background: rgba(30, 41, 59, 0.7);
@@ -77,19 +98,15 @@
             box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
         }
         
-        .password-strength {
-            height: 4px;
-            background: #334155;
-            margin-top: 8px;
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        
-        .strength-bar {
-            height: 100%;
-            width: 0%;
-            background: #ef4444;
-            transition: width 0.3s;
+        .tip {
+            background: rgba(74, 222, 128, 0.15);
+            border-left: 4px solid #4ade80;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: left;
         }
         
         button {
@@ -103,7 +120,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
         
         button:hover {
@@ -111,10 +128,8 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
         }
         
-        button:disabled {
-            background: #64748b;
-            cursor: not-allowed;
-            transform: none !important;
+        button:active {
+            transform: translateY(1px);
         }
         
         .error {
@@ -125,15 +140,34 @@
             min-height: 20px;
         }
         
-        .login-link {
-            margin-top: 20px;
-            font-size: 0.9rem;
+        .footer {
+            margin-top: 25px;
+            font-size: 0.85rem;
             color: #94a3b8;
         }
         
-        .login-link a {
+        .footer a {
             color: #60a5fa;
             text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 20px;
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            h2 {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
@@ -142,40 +176,36 @@
         <div class="logo">
             <i class="fas fa-code"></i>
         </div>
-        <h1>学生注册</h1>
+        <h1>M-Code协作编辑器</h1>
+        <h2>注册</h2>
         
         <form id="registerForm">
             <div class="form-group">
-                <label for="studentId">学号</label>
-                <input 
-                    type="text" 
-                    id="studentId" 
-                    placeholder="请输入您的学号" 
-                    required
-                    pattern="[0-9]{8,12}"
-                    title="请输入8-12位数字学号">
-            </div>
-            
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input 
-                    type="password" 
-                    id="password" 
-                    placeholder="请输入密码" 
-                    required
-                    minlength="1">
-                <div class="password-strength">
-                    <div class="strength-bar" id="strengthBar"></div>
+                <label for="username">用户名</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" name="username" placeholder="请输入您的姓名" required>
                 </div>
             </div>
             
             <div class="form-group">
-                <label for="confirmPassword">确认密码</label>
-                <input 
-                    type="password" 
-                    id="confirmPassword" 
-                    placeholder="再次输入密码" 
-                    required>
+                <label for="studentId">学号</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-id-card"></i>
+                    <input type="text" id="studentId" name="studentId" placeholder="请输入您的学号" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="请设置密码" required>
+                </div>
+            </div>
+            
+            <div class="tip">
+                <i class="fas fa-info-circle"></i> 提示：请使用真实姓名和学号注册
             </div>
             
             <button type="submit" id="registerBtn">
@@ -183,11 +213,12 @@
             </button>
             
             <div id="errorMessage" class="error"></div>
-            
-            <div class="login-link">
-                已有账号？<a href="index.html">立即登录</a>
-            </div>
         </form>
+        
+        <div class="footer">
+            <p>已有账号? <a href="index.html">立即登录</a></p>
+            <p>© 2025 M-Code协作编辑器</p>
+        </div>
     </div>
 
     <script>
@@ -195,86 +226,64 @@
         const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
         const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-        
-        // 密码强度检测（简化版，仅显示长度）
-        document.getElementById('password').addEventListener('input', function(e) {
-            const password = e.target.value;
-            const strengthBar = document.getElementById('strengthBar');
-            let strength = 0;
-            
-            if (password.length > 0) strength += 1;
-            if (password.length >= 4) strength += 1;
-            if (password.length >= 8) strength += 1;
-            if (password.length >= 12) strength += 1;
-            
-            const width = strength * 25;
-            strengthBar.style.width = `${width}%`;
-            
-            if (strength < 2) {
-                strengthBar.style.backgroundColor = '#ef4444';
-            } else if (strength < 4) {
-                strengthBar.style.backgroundColor = '#f59e0b';
-            } else {
-                strengthBar.style.backgroundColor = '#10b981';
-            }
-        });
-        
+
         // 注册处理
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const username = document.getElementById('username').value.trim();
             const studentId = document.getElementById('studentId').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            const password = document.getElementById('password').value.trim();
             const errorElement = document.getElementById('errorMessage');
             const registerBtn = document.getElementById('registerBtn');
             
-            // 验证表单
-            if (password !== confirmPassword) {
-                errorElement.textContent = '两次输入的密码不一致';
-                return;
-            }
-            
-            // 禁用按钮并显示加载状态
+            // 显示加载状态
             registerBtn.disabled = true;
             registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
             errorElement.textContent = '';
             
             try {
-                // 1. 检查学号是否已存在
-                const { data: existingUser, error: queryError } = await supabase
+                // 1. 检查用户名是否已存在
+                const { data: existingUsers, error: queryError } = await supabase
                     .from('users')
-                    .select('student_id')
-                    .eq('student_id', studentId);
+                    .select('*')
+                    .or(`username.eq.${username},student_id.eq.${studentId}`);
                 
                 if (queryError) throw queryError;
                 
-                if (existingUser && existingUser.length > 0) {
-                    throw new Error('该学号已被注册');
+                if (existingUsers.length > 0) {
+                    throw new Error('用户名或学号已存在');
                 }
                 
-                // 2. 注册新用户
-                const email = `${studentId}@m-code.edu`; // 用学号生成邮箱
-                const { data, error } = await supabase.auth.signUp({
-                    email: email,
+                // 2. 在用户表中创建记录
+                const { data: newUser, error: insertError } = await supabase
+                    .from('users')
+                    .insert([
+                        { 
+                            username: username,
+                            student_id: studentId
+                        }
+                    ])
+                    .select()
+                    .single();
+                
+                if (insertError) throw insertError;
+                
+                // 3. 使用Supabase Auth注册用户
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: `${newUser.id}@m-code.top`, // 使用唯一标识
                     password: password,
                     options: {
                         data: {
-                            student_id: studentId
+                            username: username
                         }
                     }
                 });
                 
-                if (error) throw error;
+                if (authError) throw authError;
                 
-                // 3. 显示成功消息
-                errorElement.style.color = '#4ade80';
-                errorElement.textContent = '注册成功！正在跳转到登录页面...';
-                
-                // 4. 3秒后跳转到登录页
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 3000);
+                // 注册成功后重定向
+                window.location.href = 'code.html';
                 
             } catch (err) {
                 console.error('注册错误:', err);
@@ -282,6 +291,13 @@
             } finally {
                 registerBtn.disabled = false;
                 registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+            }
+        });
+
+        // 检查是否已登录
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                window.location.href = 'code.html';
             }
         });
     </script>
