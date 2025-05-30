@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code协作编辑器 - 登录</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
+    <link rel="stylesheet" href="css/all.min.css">
+    <script src="js/supabase.js"></script>
     <style>
         * {
             margin: 0;
@@ -214,12 +214,18 @@
     </div>
 
     <script>
-        // 使用DOMContentLoaded确保DOM加载完成
+        // 初始化Supabase
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
         document.addEventListener('DOMContentLoaded', function() {
-            // 初始化Supabase - 确保最先执行
-            const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-            const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+            // 检查是否已登录
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    window.location.href = 'code.html';
+                }
+            });
 
             // 登录处理
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -256,6 +262,7 @@
                     
                     if (authError) throw authError;
                     
+                    // 重定向时不暴露任何用户信息
                     window.location.href = 'code.html';
                     
                 } catch (err) {
@@ -264,13 +271,6 @@
                 } finally {
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                }
-            });
-
-            // 检查是否已登录
-            supabase.auth.getSession().then(({ data: { session } }) => {
-                if (session) {
-                    window.location.href = 'code.html';
                 }
             });
         });
