@@ -6,7 +6,7 @@
     <title>M-Code协作编辑器 - 注册</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
+    <!-- 将Supabase脚本放在body底部 -->
     <!-- 样式部分保持不变 -->
     <style>
         /* 保持原有的样式不变 */
@@ -223,106 +223,124 @@
         </div>
     </div>
 
+    <!-- 将Supabase脚本放在body最底部 -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
-        // 使用window.onload确保所有资源加载完成
-        window.onload = async function() {
+        // 确保Supabase库完全加载后再执行
+        function initApp() {
             // 显示加载状态
-            document.getElementById('registerBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> 初始化中...';
-            document.getElementById('registerBtn').disabled = true;
+            const registerBtn = document.getElementById('registerBtn');
+            const errorElement = document.getElementById('errorMessage');
+            
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 初始化中...';
+            registerBtn.disabled = true;
+            
+            // 检查Supabase是否已加载
+            if (typeof supabase === 'undefined') {
+                errorElement.textContent = '系统正在加载，请稍候...';
+                setTimeout(initApp, 500); // 半秒后重试
+                return;
+            }
             
             try {
-                // 初始化Supabase
+                // 初始化Supabase客户端
                 const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
                 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-                const supabase = window.supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-                // 检查是否已登录
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    window.location.href = 'code.html';
-                    return;
-                }
-
-                // 恢复按钮状态
-                document.getElementById('registerBtn').innerHTML = '<i class="fas fa-user-plus"></i> 注册';
-                document.getElementById('registerBtn').disabled = false;
-
-                // 注册表单处理
-                document.getElementById('registerForm').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    const username = document.getElementById('username').value.trim();
-                    const studentId = document.getElementById('studentId').value.trim();
-                    const password = document.getElementById('password').value.trim();
-                    const errorElement = document.getElementById('errorMessage');
-                    const registerBtn = document.getElementById('registerBtn');
-                    
-                    registerBtn.disabled = true;
-                    registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
-                    errorElement.textContent = '';
-                    
-                    try {
-                        // 检查用户名或学号是否已存在
-                        const { data: existingUsers, error: queryError } = await supabase
-                            .from('users')
-                            .select('*')
-                            .or(`username.eq.${username},student_id.eq.${studentId}`);
-                        
-                        if (queryError) throw queryError;
-                        
-                        if (existingUsers.length > 0) {
-                            throw new Error('用户名或学号已存在');
-                        }
-                        
-                        // 在用户表中创建记录
-                        const { data: newUser, error: insertError } = await supabase
-                            .from('users')
-                            .insert([{ 
-                                username, 
-                                student_id: studentId 
-                            }])
-                            .select()
-                            .single();
-                        
-                        if (insertError) throw insertError;
-                        
-                        // 使用Supabase Auth注册用户
-                        const { data: authData, error: authError } = await supabase.auth.signUp({
-                            email: `${newUser.id}@m-code.top`,
-                            password: password,
-                            options: { 
-                                data: { 
-                                    username,
-                                    student_id: studentId 
-                                } 
-                            }
-                        });
-                        
-                        if (authError) throw authError;
-                        
-                        // 显示成功消息
-                        errorElement.textContent = '注册成功！正在跳转...';
-                        errorElement.style.color = '#4ade80';
-                        
-                        // 延迟跳转让用户看到成功消息
-                        setTimeout(() => {
-                            window.location.href = 'code.html';
-                        }, 1500);
-                        
-                    } catch (err) {
-                        console.error('注册错误:', err);
-                        errorElement.textContent = err.message || '注册失败，请稍后再试';
-                    } finally {
-                        registerBtn.disabled = false;
-                        registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+                const client = supabase.createClient(supabaseUrl, supabaseKey);
+                
+                // 检查会话
+                client.auth.getSession().then(({ data: { session } }) => {
+                    if (session) {
+                        window.location.href = 'code.html';
+                        return;
                     }
+                    
+                    // 恢复按钮状态
+                    registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+                    registerBtn.disabled = false;
+                    
+                    // 设置表单提交事件
+                    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        
+                        const username = document.getElementById('username').value.trim();
+                        const studentId = document.getElementById('studentId').value.trim();
+                        const password = document.getElementById('password').value.trim();
+                        
+                        registerBtn.disabled = true;
+                        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+                        errorElement.textContent = '';
+                        
+                        try {
+                            // 检查用户名或学号是否已存在
+                            const { data: existingUsers, error: queryError } = await client
+                                .from('users')
+                                .select('*')
+                                .or(`username.eq.${username},student_id.eq.${studentId}`);
+                            
+                            if (queryError) throw queryError;
+                            
+                            if (existingUsers.length > 0) {
+                                throw new Error('用户名或学号已存在');
+                            }
+                            
+                            // 在用户表中创建记录
+                            const { data: newUser, error: insertError } = await client
+                                .from('users')
+                                .insert([{ 
+                                    username, 
+                                    student_id: studentId 
+                                }])
+                                .select()
+                                .single();
+                            
+                            if (insertError) throw insertError;
+                            
+                            // 使用Supabase Auth注册用户
+                            const { error: authError } = await client.auth.signUp({
+                                email: `${newUser.id}@m-code.top`,
+                                password: password,
+                                options: { 
+                                    data: { 
+                                        username,
+                                        student_id: studentId 
+                                    } 
+                                }
+                            });
+                            
+                            if (authError) throw authError;
+                            
+                            // 显示成功消息
+                            errorElement.textContent = '注册成功！正在跳转...';
+                            errorElement.style.color = '#4ade80';
+                            
+                            // 延迟跳转
+                            setTimeout(() => {
+                                window.location.href = 'code.html';
+                            }, 1500);
+                            
+                        } catch (err) {
+                            console.error('注册错误:', err);
+                            errorElement.textContent = err.message || '注册失败，请稍后再试';
+                            registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
+                            registerBtn.disabled = false;
+                        }
+                    });
+                }).catch(error => {
+                    console.error('会话检查错误:', error);
+                    errorElement.textContent = '系统初始化失败，请刷新页面';
+                    registerBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
                 });
+                
             } catch (error) {
                 console.error('初始化错误:', error);
-                document.getElementById('errorMessage').textContent = '系统初始化失败，请刷新页面重试';
-                document.getElementById('registerBtn').innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
+                errorElement.textContent = '系统初始化失败，请刷新页面';
+                registerBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
             }
-        };
+        }
+        
+        // 使用load事件确保所有资源已加载
+        window.addEventListener('load', initApp);
     </script>
 </body>
 </html>
