@@ -215,31 +215,35 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
         // Cookie操作工具函数
-        const cookieUtils = {
-            setCookie: function(name, value, days) {
-                const date = new Date();
-                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-                const expires = "expires=" + date.toUTCString();
-                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
-            },
-            getCookie: function(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-            },
-            deleteCookie: function(name) {
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            },
-            setAuthCookies: function(username, days) {
-                this.setCookie('mcode_username', username, days);
-            },
-            clearAuthCookies: function() {
-                this.deleteCookie('mcode_username');
-            },
-            checkAuthCookies: function() {
-                return this.getCookie('mcode_username');
-            }
-        };
+const cookieUtils = {
+    setCookie: function(name, value, days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        const expires = "expires=" + date.toUTCString();
+        document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
+    },
+    getCookie: function(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    },
+    deleteCookie: function(name) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    },
+    setAuthCookies: function(username, userId, days) {
+        this.setCookie('mcode_username', username, days);
+        this.setCookie('mcode_userid', userId, days);
+    },
+    clearAuthCookies: function() {
+        this.deleteCookie('mcode_username');
+        this.deleteCookie('mcode_userid');
+    },
+    checkAuthCookies: function() {
+        const username = this.getCookie('mcode_username');
+        const userId = this.getCookie('mcode_userid');
+        return { username, userId };
+    }
+};
 
         // 初始化Supabase客户端
         const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
@@ -276,19 +280,19 @@
                         .eq('password', password)
                         .single();
                     
-                    if (error || !user) {
-                        throw new Error('用户名或密码错误');
-                    }
-                    
-                    // 设置认证Cookie，有效期7天
-                    cookieUtils.setAuthCookies(username, 7);
-                    
-                    errorElement.textContent = '登录成功！正在跳转...';
-                    errorElement.style.color = '#4ade80';
-                    
-                    setTimeout(() => {
-                        window.location.href = 'code.html';
-                    }, 1500);
+if (error || !user) {
+    throw new Error('用户名或密码错误');
+}
+
+// 设置认证Cookie，有效期7天
+cookieUtils.setAuthCookies(user.username, user.id, 7);  // 传递用户名和ID
+
+errorElement.textContent = '登录成功！正在跳转...';
+errorElement.style.color = '#4ade80';
+
+setTimeout(() => {
+    window.location.href = 'code.html';
+}, 1500);
                     
                 } catch (err) {
                     console.error('登录错误:', err);
