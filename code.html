@@ -373,4 +373,619 @@
             
             <div class="sidebar-section">
                 <div class="sidebar-title">
-                    <span>
+                    <span>项目文件</span>
+                    <button class="add-btn" id="addFileBtn">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="file-list" id="fileList">
+                    <!-- 文件列表将通过JavaScript动态生成 -->
+                </ul>
+            </div>
+        </div>
+        
+        <div class="editor-container">
+            <div class="toolbar">
+                <div class="file-name" id="fileName">未选择文件</div>
+                <div class="toolbar-actions">
+                    <button class="toolbar-btn" id="saveBtn">
+                        <i class="fas fa-save"></i> 保存
+                    </button>
+                    <button class="toolbar-btn" id="shareBtn">
+                        <i class="fas fa-share-alt"></i> 分享
+                    </button>
+                </div>
+            </div>
+            
+            <textarea id="editor"></textarea>
+        </div>
+    </div>
+    
+    <div class="collaborators" id="collaborators">
+        <!-- 协作者列表将通过JavaScript动态生成 -->
+    </div>
+    
+    <!-- 新建项目模态框 -->
+    <div class="modal" id="newProjectModal">
+        <div class="modal-content">
+            <h3 class="modal-title">新建项目</h3>
+            <input type="text" class="modal-input" id="projectNameInput" placeholder="输入项目名称">
+            <textarea class="modal-input" id="projectDescInput" placeholder="项目描述（可选）"></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelProjectBtn">取消</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmProjectBtn">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 新建文件模态框 -->
+    <div class="modal" id="newFileModal">
+        <div class="modal-content">
+            <h3 class="modal-title">新建文件</h3>
+            <input type="text" class="modal-input" id="fileNameInput" placeholder="输入文件名称（带后缀）">
+            <select id="fileLanguageSelect" class="modal-input">
+                <option value="javascript">JavaScript</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="php">PHP</option>
+            </select>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelFileBtn">取消</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmFileBtn">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 分享项目模态框 -->
+    <div class="modal" id="shareModal">
+        <div class="modal-content">
+            <h3 class="modal-title">分享项目</h3>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">邀请链接</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" class="modal-input" id="shareLinkInput" readonly>
+                    <button class="modal-btn" id="copyLinkBtn" style="white-space: nowrap;">
+                        <i class="fas fa-copy"></i> 复制
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px;">添加协作者</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" class="modal-input" id="collaboratorInput" placeholder="输入用户名">
+                    <button class="modal-btn modal-btn-confirm" id="addCollaboratorBtn">
+                        <i class="fas fa-user-plus"></i> 添加
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button class="modal-btn modal-btn-cancel" id="closeShareBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/php/php.min.js"></script>
+    <script>
+        // Cookie操作工具函数
+        const cookieUtils = {
+            setCookie: function(name, value, days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = "expires=" + date.toUTCString();
+                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
+            },
+            getCookie: function(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            },
+            deleteCookie: function(name) {
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+            },
+            setAuthCookies: function(username, days) {
+                this.setCookie('mcode_username', username, days);
+            },
+            clearAuthCookies: function() {
+                this.deleteCookie('mcode_username');
+            },
+            checkAuthCookies: function() {
+                return this.getCookie('mcode_username');
+            }
+        };
+
+        // 初始化Supabase客户端
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // 全局变量
+        let currentUser = null;
+        let currentProject = null;
+        let currentFile = null;
+        let editor = null;
+        let projects = [];
+        let files = [];
+        let collaborators = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 检查用户是否已登录
+            const username = cookieUtils.checkAuthCookies();
+            if (!username) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // 设置用户信息
+            currentUser = { username };
+            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+
+            // 初始化编辑器
+            initEditor();
+
+            // 加载用户项目
+            await loadUserProjects();
+
+            // 设置事件监听器
+            setupEventListeners();
+
+            // 设置退出按钮
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                cookieUtils.clearAuthCookies();
+                window.location.href = 'index.html';
+            });
+        });
+
+        function initEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+                lineNumbers: true,
+                theme: 'dracula',
+                lineWrapping: true,
+                indentUnit: 4,
+                tabSize: 4,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                extraKeys: {
+                    'Ctrl-S': saveCurrentFile,
+                    'Cmd-S': saveCurrentFile
+                }
+            });
+
+            // 监听编辑器内容变化
+            editor.on('change', () => {
+                if (currentFile) {
+                    currentFile.hasChanges = true;
+                }
+            });
+        }
+
+        async function loadUserProjects() {
+            try {
+                // 获取用户参与的所有项目
+                const { data: userProjects, error } = await client
+                    .from('project_members')
+                    .select('project_id, projects(*)')
+                    .eq('user_id', currentUser.id);
+                
+                if (error) throw error;
+
+                projects = userProjects.map(item => item.projects);
+                renderProjectList();
+                
+                // 如果有项目，默认选择第一个
+                if (projects.length > 0) {
+                    await selectProject(projects[0].id);
+                }
+                
+            } catch (err) {
+                console.error('加载项目错误:', err);
+                alert('加载项目失败: ' + err.message);
+            }
+        }
+
+        function renderProjectList() {
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
+            
+            projects.forEach(project => {
+                const li = document.createElement('li');
+                li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
+                li.innerHTML = `
+                    <i class="fas fa-folder"></i>
+                    <span>${project.name}</span>
+                `;
+                li.addEventListener('click', () => selectProject(project.id));
+                projectList.appendChild(li);
+            });
+        }
+
+        async function selectProject(projectId) {
+            try {
+                // 获取项目详情
+                const { data: project, error: projectError } = await client
+                    .from('projects')
+                    .select('*')
+                    .eq('id', projectId)
+                    .single();
+                
+                if (projectError) throw projectError;
+                
+                currentProject = project;
+                
+                // 获取项目文件
+                const { data: projectFiles, error: filesError } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('project_id', projectId)
+                    .order('created_at', { ascending: true });
+                
+                if (filesError) throw filesError;
+                
+                files = projectFiles;
+                renderFileList();
+                
+                // 获取项目协作者
+                const { data: projectMembers, error: membersError } = await client
+                    .from('project_members')
+                    .select('user_id, users(username)')
+                    .eq('project_id', projectId);
+                
+                if (membersError) throw membersError;
+                
+                collaborators = projectMembers.map(member => ({
+                    id: member.user_id,
+                    username: member.users.username
+                }));
+                
+                renderCollaborators();
+                
+                // 高亮选中的项目
+                document.querySelectorAll('.project-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const projectItem = document.querySelector(`.project-item[data-project-id="${projectId}"]`);
+                if (projectItem) {
+                    projectItem.classList.add('active');
+                }
+                
+            } catch (err) {
+                console.error('选择项目错误:', err);
+                alert('加载项目失败: ' + err.message);
+            }
+        }
+
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
+                li.innerHTML = `
+                    <i class="fas fa-file-code"></i>
+                    <span>${file.name}</span>
+                `;
+                li.addEventListener('click', () => selectFile(file.id));
+                fileList.appendChild(li);
+            });
+        }
+
+        async function selectFile(fileId) {
+            try {
+                const file = files.find(f => f.id === fileId);
+                if (!file) return;
+                
+                currentFile = file;
+                
+                // 设置编辑器内容和模式
+                editor.setValue(file.content || '');
+                setEditorMode(file.language);
+                
+                // 更新文件名显示
+                document.getElementById('fileName').textContent = file.name;
+                
+                // 高亮选中的文件
+                document.querySelectorAll('.file-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
+                if (fileItem) {
+                    fileItem.classList.add('active');
+                }
+                
+            } catch (err) {
+                console.error('选择文件错误:', err);
+                alert('加载文件失败: ' + err.message);
+            }
+        }
+
+        function setEditorMode(language) {
+            let mode;
+            
+            switch (language) {
+                case 'javascript':
+                    mode = 'javascript';
+                    break;
+                case 'html':
+                    mode = 'htmlmixed';
+                    break;
+                case 'css':
+                    mode = 'css';
+                    break;
+                case 'python':
+                    mode = 'python';
+                    break;
+                case 'java':
+                    mode = 'text/x-java';
+                    break;
+                case 'php':
+                    mode = 'php';
+                    break;
+                default:
+                    mode = 'javascript';
+            }
+            
+            editor.setOption('mode', mode);
+        }
+
+        async function saveCurrentFile() {
+            if (!currentFile) return;
+            
+            try {
+                const content = editor.getValue();
+                
+                const { error } = await client
+                    .from('files')
+                    .update({ content })
+                    .eq('id', currentFile.id);
+                
+                if (error) throw error;
+                
+                currentFile.content = content;
+                currentFile.hasChanges = false;
+                
+                console.log('文件保存成功');
+                
+            } catch (err) {
+                console.error('保存文件错误:', err);
+                alert('保存文件失败: ' + err.message);
+            }
+        }
+
+        function renderCollaborators() {
+            const collaboratorsContainer = document.getElementById('collaborators');
+            collaboratorsContainer.innerHTML = '';
+            
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator';
+                div.innerHTML = `
+                    <div class="collaborator-avatar">
+                        ${collaborator.username.charAt(0).toUpperCase()}
+                        <div class="collaborator-active"></div>
+                    </div>
+                    <div class="collaborator-name">${collaborator.username}</div>
+                `;
+                collaboratorsContainer.appendChild(div);
+            });
+        }
+
+        function setupEventListeners() {
+            // 新建项目按钮
+            document.getElementById('addProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.add('active');
+                document.getElementById('projectNameInput').focus();
+            });
+            
+            // 取消新建项目
+            document.getElementById('cancelProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.remove('active');
+            });
+            
+            // 确认新建项目
+            document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
+                const name = document.getElementById('projectNameInput').value.trim();
+                const description = document.getElementById('projectDescInput').value.trim();
+                
+                if (!name) {
+                    alert('请输入项目名称');
+                    return;
+                }
+                
+                try {
+                    const { data: project, error } = await client
+                        .from('projects')
+                        .insert([{ 
+                            name,
+                            description,
+                            created_by: currentUser.id
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    // 添加创建者为项目成员
+                    await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: project.id,
+                            user_id: currentUser.id,
+                            role: 'owner'
+                        }]);
+                    
+                    // 关闭模态框并重置输入
+                    document.getElementById('newProjectModal').classList.remove('active');
+                    document.getElementById('projectNameInput').value = '';
+                    document.getElementById('projectDescInput').value = '';
+                    
+                    // 重新加载项目列表
+                    await loadUserProjects();
+                    
+                } catch (err) {
+                    console.error('创建项目错误:', err);
+                    alert('创建项目失败: ' + err.message);
+                }
+            });
+            
+            // 新建文件按钮
+            document.getElementById('addFileBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择项目');
+                    return;
+                }
+                
+                document.getElementById('newFileModal').classList.add('active');
+                document.getElementById('fileNameInput').focus();
+            });
+            
+            // 取消新建文件
+            document.getElementById('cancelFileBtn').addEventListener('click', () => {
+                document.getElementById('newFileModal').classList.remove('active');
+            });
+            
+            // 确认新建文件
+            document.getElementById('confirmFileBtn').addEventListener('click', async () => {
+                const name = document.getElementById('fileNameInput').value.trim();
+                const language = document.getElementById('fileLanguageSelect').value;
+                
+                if (!name) {
+                    alert('请输入文件名称');
+                    return;
+                }
+                
+                try {
+                    const { data: file, error } = await client
+                        .from('files')
+                        .insert([{ 
+                            name,
+                            language,
+                            content: '',
+                            project_id: currentProject.id,
+                            created_by: currentUser.id
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    // 关闭模态框并重置输入
+                    document.getElementById('newFileModal').classList.remove('active');
+                    document.getElementById('fileNameInput').value = '';
+                    
+                    // 重新加载文件列表并选择新文件
+                    await selectProject(currentProject.id);
+                    await selectFile(file.id);
+                    
+                } catch (err) {
+                    console.error('创建文件错误:', err);
+                    alert('创建文件失败: ' + err.message);
+                }
+            });
+            
+            // 保存按钮
+            document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
+            
+            // 分享按钮
+            document.getElementById('shareBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择项目');
+                    return;
+                }
+                
+                const shareLink = `${window.location.origin}/code.html?project=${currentProject.id}`;
+                document.getElementById('shareLinkInput').value = shareLink;
+                document.getElementById('shareModal').classList.add('active');
+            });
+            
+            // 复制链接按钮
+            document.getElementById('copyLinkBtn').addEventListener('click', () => {
+                const shareInput = document.getElementById('shareLinkInput');
+                shareInput.select();
+                document.execCommand('copy');
+                alert('链接已复制到剪贴板');
+            });
+            
+            // 添加协作者按钮
+            document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
+                const username = document.getElementById('collaboratorInput').value.trim();
+                
+                if (!username) {
+                    alert('请输入用户名');
+                    return;
+                }
+                
+                try {
+                    // 查找用户
+                    const { data: user, error: userError } = await client
+                        .from('users')
+                        .select('id')
+                        .eq('username', username)
+                        .single();
+                    
+                    if (userError || !user) {
+                        throw new Error('用户不存在');
+                    }
+                    
+                    // 检查是否已经是协作者
+                    const isAlreadyMember = collaborators.some(c => c.id === user.id);
+                    if (isAlreadyMember) {
+                        alert('该用户已经是项目成员');
+                        return;
+                    }
+                    
+                    // 添加为协作者
+                    const { error: memberError } = await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: currentProject.id,
+                            user_id: user.id,
+                            role: 'editor'
+                        }]);
+                    
+                    if (memberError) throw memberError;
+                    
+                    // 更新协作者列表
+                    collaborators.push({
+                        id: user.id,
+                        username
+                    });
+                    
+                    renderCollaborators();
+                    document.getElementById('collaboratorInput').value = '';
+                    
+                    alert(`已成功添加 ${username} 为协作者`);
+                    
+                } catch (err) {
+                    console.error('添加协作者错误:', err);
+                    alert('添加协作者失败: ' + err.message);
+                }
+            });
+            
+            // 关闭分享模态框
+            document.getElementById('closeShareBtn').addEventListener('click', () => {
+                document.getElementById('shareModal').classList.remove('active');
+            });
+            
+            // 点击模态框外部关闭
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
