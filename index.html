@@ -212,93 +212,92 @@
         </div>
     </div>
 
-    <!-- 将Supabase脚本放在body最底部 -->
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
-        // 确保Supabase库完全加载后再执行
-        function initApp() {
-            // 显示加载状态
+        // Cookie操作工具函数
+        const cookieUtils = {
+            setCookie: function(name, value, days) {
+                const date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = "expires=" + date.toUTCString();
+                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
+            },
+            getCookie: function(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            },
+            deleteCookie: function(name) {
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+            },
+            setAuthCookies: function(username, days) {
+                this.setCookie('mcode_username', username, days);
+            },
+            clearAuthCookies: function() {
+                this.deleteCookie('mcode_username');
+            },
+            checkAuthCookies: function() {
+                return this.getCookie('mcode_username');
+            }
+        };
+
+        // 初始化Supabase客户端
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查是否已有有效Cookie
+            if (cookieUtils.checkAuthCookies()) {
+                window.location.href = 'code.html';
+                return;
+            }
+
             const loginBtn = document.getElementById('loginBtn');
             const errorElement = document.getElementById('errorMessage');
             
-            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 初始化中...';
-            loginBtn.disabled = true;
-            
-            // 检查Supabase是否已加载
-            if (typeof supabase === 'undefined') {
-                errorElement.textContent = '系统正在加载，请稍候...';
-                setTimeout(initApp, 500); // 半秒后重试
-                return;
-            }
-            
-            try {
-                // 初始化Supabase客户端
-                const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-                const client = supabase.createClient(supabaseUrl, supabaseKey);
+            // 设置表单提交事件
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
                 
-                // 检查会话
-                client.auth.getSession().then(({ data: { session } }) => {
-                    if (session) {
-                        window.location.href = 'code.html';
-                        return;
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+                errorElement.textContent = '';
+                
+                try {
+                    // 查询用户是否存在
+                    const { data: user, error } = await client
+                        .from('users')
+                        .select('*')
+                        .eq('username', username)
+                        .eq('password', password)
+                        .single();
+                    
+                    if (error || !user) {
+                        throw new Error('用户名或密码错误');
                     }
                     
-                    // 恢复按钮状态
+                    // 设置认证Cookie，有效期7天
+                    cookieUtils.setAuthCookies(username, 7);
+                    
+                    errorElement.textContent = '登录成功！正在跳转...';
+                    errorElement.style.color = '#4ade80';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'code.html';
+                    }, 1500);
+                    
+                } catch (err) {
+                    console.error('登录错误:', err);
+                    errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
                     loginBtn.disabled = false;
-                    
-                    // 设置表单提交事件
-                    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        
-                        const username = document.getElementById('username').value.trim();
-                        const password = document.getElementById('password').value.trim();
-                        
-                        loginBtn.disabled = true;
-                        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
-                        errorElement.textContent = '';
-                        
-                        try {
-                            // 使用Supabase Auth进行登录
-                            const { error: authError } = await client.auth.signInWithPassword({
-                                email: `${username}@m-code.top`,
-                                password: password
-                            });
-                            
-                            if (authError) throw authError;
-                            
-                            // 显示成功消息
-                            errorElement.textContent = '登录成功！正在跳转...';
-                            errorElement.style.color = '#4ade80';
-                            
-                            // 延迟跳转
-                            setTimeout(() => {
-                                window.location.href = 'code.html';
-                            }, 1500);
-                            
-                        } catch (err) {
-                            console.error('登录错误:', err);
-                            errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
-                            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                            loginBtn.disabled = false;
-                        }
-                    });
-                }).catch(error => {
-                    console.error('会话检查错误:', error);
-                    errorElement.textContent = '系统初始化失败，请刷新页面';
-                    loginBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
-                });
-                
-            } catch (error) {
-                console.error('初始化错误:', error);
-                errorElement.textContent = '系统初始化失败，请刷新页面';
-                loginBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 初始化失败';
-            }
-        }
-        
-        // 使用load事件确保所有资源已加载
-        window.addEventListener('load', initApp);
+                }
+            });
+        });
     </script>
 </body>
 </html>

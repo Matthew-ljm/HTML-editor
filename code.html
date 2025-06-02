@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code协作编辑器</title>
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     <style>
         * {
             margin: 0;
@@ -14,165 +17,360 @@
         }
         
         body {
-            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            background-color: #0f172a;
+            color: #e2e8f0;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        header {
+            background-color: #1e293b;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4ade80;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #334155;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .logout-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        
+        .logout-btn:hover {
+            color: #f87171;
+            background-color: rgba(248, 113, 113, 0.1);
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #1e293b;
+            border-right: 1px solid #334155;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-title {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-list, .file-list {
+            list-style: none;
+        }
+        
+        .project-item, .file-item {
+            padding: 8px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .project-item:hover, .file-item:hover {
+            background-color: #334155;
+        }
+        
+        .project-item.active, .file-item.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .add-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .add-btn:hover {
+            color: #4ade80;
+        }
+        
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .toolbar {
+            background-color: #1e293b;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .file-name {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .toolbar-btn {
+            background-color: #334155;
+            border: none;
+            color: #e2e8f0;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .toolbar-btn:hover {
+            background-color: #3b82f6;
+        }
+        
+        .CodeMirror {
+            height: 100% !important;
+            font-size: 14px;
+        }
+        
+        .collaborators {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .collaborator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .collaborator-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            position: relative;
+        }
+        
+        .collaborator-name {
+            font-size: 0.8rem;
+            background-color: rgba(30, 41, 59, 0.9);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .collaborator-active {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #4ade80;
+            border-radius: 50%;
+            bottom: 0;
+            right: 0;
+            border: 2px solid #1e293b;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(15, 23, 42, 0.8);
             display: flex;
             justify-content: center;
             align-items: center;
-            color: white;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
         }
         
-        .container {
-            text-align: center;
-            padding: 40px;
-            background: rgba(15, 23, 42, 0.9);
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-            max-width: 600px;
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .modal-content {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
             width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            transform: translateY(-20px);
+            transition: transform 0.3s;
         }
         
-        .success-icon {
-            font-size: 5rem;
-            color: #4ade80;
-            margin-bottom: 20px;
+        .modal.active .modal-content {
+            transform: translateY(0);
         }
         
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-            color: #4ade80;
-        }
-        
-        .welcome-message {
-            font-size: 1.5rem;
-            margin: 30px 0;
-            padding: 20px;
-            background: rgba(74, 222, 128, 0.15);
-            border-radius: 10px;
-            border-left: 4px solid #4ade80;
-        }
-        
-        .editor-preview {
-            background: #0f172a;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: left;
-            margin-top: 30px;
-            border: 1px solid #334155;
-        }
-        
-        .editor-header {
-            display: flex;
-            justify-content: space-between;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #334155;
+        .modal-title {
+            font-size: 1.2rem;
             margin-bottom: 15px;
-            color: #94a3b8;
+            color: #e2e8f0;
         }
         
-        .code {
-            font-family: 'Courier New', monospace;
-            color: #cbd5e1;
-            line-height: 1.6;
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 5px;
+            color: #e2e8f0;
         }
         
-        .btn {
-            display: inline-block;
-            margin-top: 25px;
-            padding: 12px 30px;
-            background: linear-gradient(to right, #0ea5e9, #4ade80);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 600;
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .modal-btn {
+            padding: 8px 15px;
+            border-radius: 5px;
             cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s ease;
+            border: none;
+            font-weight: 500;
         }
         
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        .modal-btn-cancel {
+            background-color: #334155;
+            color: #e2e8f0;
+        }
+        
+        .modal-btn-confirm {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .sidebar {
+                position: absolute;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left 0.3s;
+            }
+            
+            .sidebar.active {
+                left: 0;
+            }
+            
+            .menu-toggle {
+                display: block;
+                background: none;
+                border: none;
+                color: #e2e8f0;
+                font-size: 1.2rem;
+                cursor: pointer;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="success-icon">
-            <i class="fas fa-check-circle"></i>
+    <header>
+        <div class="logo">
+            <i class="fas fa-code"></i>
+            <span>M-Code</span>
         </div>
-        <h1>欢迎使用 M-Code</h1>
-        
-        <div class="welcome-message">
-            欢迎, <span id="username"></span>! 您已成功登录协作编辑器
+        <div class="user-info">
+            <div class="avatar" id="userAvatar">U</div>
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i> 退出
+            </button>
         </div>
-        
-        <div class="editor-preview">
-            <div class="editor-header">
-                <div>editor.js</div>
-                <div>JavaScript</div>
+    </header>
+    
+    <div class="main-container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>我的项目</span>
+                    <button class="add-btn" id="addProjectBtn">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="project-list" id="projectList">
+                    <!-- 项目列表将通过JavaScript动态生成 -->
+                </ul>
             </div>
-            <div class="code">
-                <pre>// 协作编辑示例代码
-function welcomeUser(username) {
-  console.log(`欢迎 ${username} 加入协作编辑!`);
-  
-  // 实时协作功能
-  const editor = new CollaborativeEditor({
-    user: username,
-    theme: 'dark',
-    language: 'javascript'
-  });
-  
-  editor.init();
-}</pre>
-            </div>
-        </div>
-        
-        <button id="logoutBtn" class="btn">
-            <i class="fas fa-sign-out-alt"></i> 退出登录
-        </button>
-    </div>
-
-    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
-    <script>
-        // 初始化Supabase
-        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-        
-        // 检查登录状态
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (!session) {
-                window.location.href = 'index.html';
-                return;
-            }
             
-            // 从服务器获取用户信息
-            supabase.from('users')
-                .select('username, student_id')
-                .eq('id', session.user.id)
-                .single()
-                .then(({ data: user, error }) => {
-                    if (error) {
-                        console.error('获取用户信息错误:', error);
-                        return;
-                    }
-                    
-                    if (user) {
-                        // 显示用户名
-                        document.getElementById('username').textContent = user.username;
-                    }
-                });
-        });
-        
-        // 退出登录
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            const { error } = await supabase.auth.signOut();
-            window.location.href = 'index.html';
-        });
-    </script>
-</body>
-</html>
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>
