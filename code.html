@@ -394,7 +394,7 @@
                     <button class="toolbar-btn" id="shareBtn">
                         <i class="fas fa-share-alt"></i> 分享
                     </button>
-                </div>
+        </div>
             </div>
             
             <textarea id="editor"></textarea>
@@ -491,14 +491,18 @@
             deleteCookie: function(name) {
                 document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
             },
-            setAuthCookies: function(username, days) {
+            setAuthCookies: function(username, userId, days) {
                 this.setCookie('mcode_username', username, days);
+                this.setCookie('mcode_userid', userId, days);
             },
             clearAuthCookies: function() {
                 this.deleteCookie('mcode_username');
+                this.deleteCookie('mcode_userid');
             },
             checkAuthCookies: function() {
-                return this.getCookie('mcode_username');
+                const username = this.getCookie('mcode_username');
+                const userId = this.getCookie('mcode_userid');
+                return { username, userId };
             }
         };
 
@@ -518,14 +522,17 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             // 检查用户是否已登录
-            const username = cookieUtils.checkAuthCookies();
-            if (!username) {
+            const { username, userId } = cookieUtils.checkAuthCookies();
+            if (!username || !userId) {
                 window.location.href = 'index.html';
                 return;
             }
 
             // 设置用户信息
-            currentUser = { username };
+            currentUser = { 
+                username,
+                id: userId
+            };
             document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
 
             // 初始化编辑器
@@ -602,6 +609,7 @@
                     <i class="fas fa-folder"></i>
                     <span>${project.name}</span>
                 `;
+                li.dataset.projectId = project.id;
                 li.addEventListener('click', () => selectProject(project.id));
                 projectList.appendChild(li);
             });
@@ -674,6 +682,7 @@
                     <i class="fas fa-file-code"></i>
                     <span>${file.name}</span>
                 `;
+                li.dataset.fileId = file.id;
                 li.addEventListener('click', () => selectFile(file.id));
                 fileList.appendChild(li);
             });
