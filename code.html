@@ -394,7 +394,7 @@
                     <button class="toolbar-btn" id="shareBtn">
                         <i class="fas fa-share-alt"></i> 分享
                     </button>
-        </div>
+                </div>
             </div>
             
             <textarea id="editor"></textarea>
@@ -576,6 +576,11 @@
 
         async function loadUserProjects() {
             try {
+                if (!currentUser?.id) {
+                    console.error('User ID is undefined');
+                    return;
+                }
+
                 // 获取用户参与的所有项目
                 const { data: userProjects, error } = await client
                     .from('project_members')
