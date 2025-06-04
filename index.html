@@ -168,6 +168,51 @@
                 font-size: 1.3rem;
             }
         }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+        
+        .remember-me input {
+            width: auto;
+            margin-right: 10px;
+            padding: 0;
+        }
+        
+        .remember-me label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .remember-options {
+            display: none;
+            margin-left: 25px;
+            margin-top: 5px;
+        }
+        
+        .remember-options.show {
+            display: block;
+        }
+        
+        .remember-options select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.7);
+            color: white;
+            font-size: 0.9rem;
+        }
+        
+        .remember-options select:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
     </style>
 </head>
 <body>
@@ -194,9 +239,21 @@
                     <input type="password" id="password" name="password" placeholder="请输入您的密码" required>
                 </div>
             </div>
+        
+            <div class="tip"> 
+                <i class="fas fa-info-circle"></i> 用户名为你的姓名，密码为你的学号。
+            </div>
             
-            <div class="tip">
-                <i class="fas fa-info-circle"></i> 提示：请使用您注册时的用户名和密码登录
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                <label for="rememberMe">记住密码</label>
+                <div class="remember-options" id="rememberOptions">
+                    <select id="rememberDuration">
+                        <option value="1">1天</option>
+                        <option value="7" selected>7天</option>
+                        <option value="30">30天</option>
+                    </select>
+                </div>
             </div>
             
             <button type="submit" id="loginBtn">
@@ -216,9 +273,9 @@
     <script>
         // Cookie操作工具函数
         const cookieUtils = {
-            setCookie: function(name, value, days) {
+            setCookie: function(name, value, seconds) {
                 const date = new Date();
-                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                date.setTime(date.getTime() + (seconds * 1000));
                 const expires = "expires=" + date.toUTCString();
                 document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
             },
@@ -230,9 +287,9 @@
             deleteCookie: function(name) {
                 document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
             },
-            setAuthCookies: function(username, userId, days) {
-                this.setCookie('mcode_username', username, days);
-                this.setCookie('mcode_userid', userId, days);
+            setAuthCookies: function(username, userId, seconds) {
+                this.setCookie('mcode_username', username, seconds);
+                this.setCookie('mcode_userid', userId, seconds);
             },
             clearAuthCookies: function() {
                 this.deleteCookie('mcode_username');
@@ -260,6 +317,18 @@
 
             const loginBtn = document.getElementById('loginBtn');
             const errorElement = document.getElementById('errorMessage');
+            const rememberMeCheckbox = document.getElementById('rememberMe');
+            const rememberOptions = document.getElementById('rememberOptions');
+            const rememberDuration = document.getElementById('rememberDuration');
+            
+            // 记住我选项切换
+            rememberMeCheckbox.addEventListener('change', () => {
+                if (rememberMeCheckbox.checked) {
+                    rememberOptions.classList.add('show');
+                } else {
+                    rememberOptions.classList.remove('show');
+                }
+            });
             
             // 设置表单提交事件
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -267,6 +336,18 @@
                 
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value.trim();
+                const rememberMe = rememberMeCheckbox.checked;
+                const duration = rememberMe ? parseInt(rememberDuration.value) : 0;
+                
+                // 计算cookie有效期（秒）
+                let cookieExpiry;
+                if (rememberMe) {
+                    // 记住密码的情况
+                    cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
+                } else {
+                    // 不记住密码的情况，10秒有效期
+                    cookieExpiry = 10;
+                }
                 
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
@@ -285,8 +366,8 @@
                         throw new Error('用户名或密码错误');
                     }
                     
-                    // 设置认证Cookie，有效期7天
-                    cookieUtils.setAuthCookies(user.username, user.id, 7);
+                    // 设置认证Cookie
+                    cookieUtils.setAuthCookies(user.username, user.id, cookieExpiry);
                     
                     errorElement.textContent = '登录成功！正在跳转...';
                     errorElement.style.color = '#4ade80';
