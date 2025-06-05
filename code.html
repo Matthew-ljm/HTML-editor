@@ -549,12 +549,9 @@
             <h3 class="modal-title">新建文件</h3>
             <input type="text" class="modal-input" id="fileNameInput" placeholder="输入文件名称（带后缀）">
             <select id="fileLanguageSelect" class="modal-input">
-                <option value="javascript">JavaScript</option>
                 <option value="html">HTML</option>
-                <option value="css">CSS</option>
                 <option value="python">Python</option>
-                <option value="java">Java</option>
-                <option value="php">PHP</option>
+                <option value="cpp">C++</option>
             </select>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="cancelFileBtn">取消</button>
@@ -610,7 +607,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/html-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/css-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/anyword-hint.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css"></link>
     <script>
         // Cookie操作工具函数
         const cookieUtils = {
@@ -663,15 +660,6 @@
 
         // 代码补全关键词库
         const completions = {
-            javascript: [
-                "function", "var", "let", "const", "if", "else", "for", "while", "do", "switch", 
-                "case", "break", "continue", "return", "try", "catch", "finally", "throw", 
-                "new", "this", "class", "extends", "super", "import", "export", "default", 
-                "async", "await", "Promise", "console", "log", "warn", "error", "info", 
-                "document", "window", "Array", "Object", "String", "Number", "Boolean", 
-                "Date", "Math", "JSON", "parse", "stringify", "setTimeout", "setInterval", 
-                "clearTimeout", "clearInterval", "fetch", "then", "catch", "finally"
-            ],
             html: [
                 "div", "span", "p", "a", "img", "ul", "ol", "li", "table", "tr", "td", 
                 "th", "form", "input", "button", "select", "option", "textarea", "label", 
@@ -680,21 +668,6 @@
                 "audio", "source", "canvas", "svg", "path", "circle", "rect", "line", 
                 "polygon", "style", "script", "link", "meta", "title", "head", "body", 
                 "html", "DOCTYPE", "br", "hr", "iframe", "object", "embed", "param"
-            ],
-            css: [
-                "color", "background", "margin", "padding", "border", "width", "height", 
-                "display", "position", "top", "right", "bottom", "left", "float", "clear", 
-                "font", "text", "line-height", "letter-spacing", "word-spacing", "white-space", 
-                "text-align", "text-decoration", "text-transform", "text-indent", "text-shadow", 
-                "box-shadow", "opacity", "visibility", "overflow", "z-index", "flex", "grid", 
-                "align-items", "justify-content", "flex-direction", "flex-wrap", "order", 
-                "flex-grow", "flex-shrink", "flex-basis", "grid-template", "grid-column", 
-                "grid-row", "grid-area", "gap", "column-gap", "row-gap", "transition", 
-                "animation", "transform", "rotate", "scale", "translate", "skew", "perspective", 
-                "backface-visibility", "cursor", "pointer-events", "user-select", "resize", 
-                "outline", "box-sizing", "content", "quotes", "counter-reset", "counter-increment", 
-                "list-style", "table-layout", "border-collapse", "border-spacing", "empty-cells", 
-                "caption-side", "vertical-align", "direction", "unicode-bidi", "writing-mode"
             ],
             python: [
                 "def", "class", "if", "elif", "else", "for", "while", "try", "except", 
@@ -709,35 +682,22 @@
                 "map", "max", "min", "next", "oct", "open", "pow", "repr", "reversed", 
                 "round", "setattr", "slice", "sorted", "sum", "vars", "zip"
             ],
-            java: [
-                "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", 
-                "class", "const", "continue", "default", "do", "double", "else", "enum", 
-                "extends", "final", "finally", "float", "for", "if", "implements", "import", 
-                "instanceof", "int", "interface", "long", "native", "new", "package", 
-                "private", "protected", "public", "return", "short", "static", "strictfp", 
-                "super", "switch", "synchronized", "this", "throw", "throws", "transient", 
-                "try", "void", "volatile", "while", "true", "false", "null", "System", 
-                "out", "println", "print", "String", "Integer", "Double", "Float", "Boolean", 
-                "Character", "Byte", "Short", "Long", "Math", "Random", "Scanner", "Arrays", 
-                "ArrayList", "LinkedList", "HashMap", "HashSet", "Iterator", "Exception", 
-                "RuntimeException", "IOException", "File", "BufferedReader", "BufferedWriter", 
-                "FileReader", "FileWriter", "Thread", "Runnable", "synchronized", "volatile"
-            ],
-            php: [
-                "echo", "print", "if", "else", "elseif", "while", "do", "for", "foreach", 
-                "switch", "case", "break", "continue", "return", "function", "class", 
-                "interface", "trait", "namespace", "use", "extends", "implements", "public", 
-                "protected", "private", "static", "abstract", "final", "const", "new", 
-                "clone", "instanceof", "try", "catch", "finally", "throw", "array", 
-                "isset", "empty", "unset", "include", "include_once", "require", "require_once", 
-                "die", "exit", "list", "global", "var", "and", "or", "xor", "not", "true", 
-                "false", "null", "self", "parent", "this", "string", "int", "float", 
-                "bool", "array", "object", "callable", "iterable", "void", "mixed", 
-                "null", "resource", "count", "sizeof", "is_array", "is_string", "is_int", 
-                "is_float", "is_bool", "is_object", "is_null", "is_resource", "gettype", 
-                "settype", "strlen", "strpos", "str_replace", "substr", "trim", "ltrim", 
-                "rtrim", "strtolower", "strtoupper", "ucfirst", "ucwords", "explode", 
-                "implode", "json_encode", "json_decode", "file_get_contents", "file_put_contents"
+            cpp: [
+                "auto", "break", "case", "char", "const", "continue", "default", "do", 
+                "double", "else", "enum", "extern", "float", "for", "goto", "if", 
+                "int", "long", "register", "return", "short", "signed", "sizeof", "static", 
+                "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", 
+                "while", "asm", "bool", "catch", "class", "const_cast", "delete", 
+                "dynamic_cast", "explicit", "false", "friend", "inline", "mutable", 
+                "namespace", "new", "operator", "private", "protected", "public", 
+                "reinterpret_cast", "static_cast", "template", "this", "throw", "true", 
+                "try", "typeid", "typename", "using", "virtual", "wchar_t", "cout", 
+                "cin", "endl", "string", "vector", "map", "set", "list", "queue", 
+                "stack", "algorithm", "iterator", "iostream", "fstream", "sstream", 
+                "cmath", "cstdlib", "cstring", "ctime", "cerrno", "climits", "cfloat", 
+                "cctype", "cassert", "main", "include", "define", "ifdef", "ifndef", 
+                "endif", "pragma", "error", "line", "undef", "defined", "elif", "else", 
+                "endif", "if", "ifdef", "ifndef", "include", "line", "pragma", "undef"
             ]
         };
 
@@ -851,29 +811,24 @@
                 
                 // 获取当前语言模式
                 const mode = cm.getMode().name;
-                let lang = 'javascript';
+                let lang = 'html';
                 
-                if (mode.includes('html')) lang = 'html';
-                else if (mode.includes('css')) lang = 'css';
-                else if (mode.includes('python')) lang = 'python';
-                else if (mode.includes('clike')) lang = 'java';
-                else if (mode.includes('php')) lang = 'php';
+                if (mode.includes('python')) lang = 'python';
+                else if (mode.includes('clike')) lang = 'cpp';
                 
                 // 获取当前语言的补全列表
                 let list = completions[lang] || [];
                 
-                // 如果是JavaScript，添加当前文档中的单词
-                if (lang === 'javascript') {
-                    const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-                    let match, words = {};
-                    const text = cm.getValue();
-                    
-                    while (match = wordRegex.exec(text)) {
-                        words[match[0]] = true;
-                    }
-                    
-                    list = list.concat(Object.keys(words));
+                // 添加当前文档中的单词
+                const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+                let match, words = {};
+                const text = cm.getValue();
+                
+                while (match = wordRegex.exec(text)) {
+                    words[match[0]] = true;
                 }
+                
+                list = list.concat(Object.keys(words));
                 
                 // 过滤匹配当前输入的补全项
                 const start = token.start;
