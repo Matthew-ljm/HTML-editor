@@ -161,6 +161,12 @@
             font-size: 0.95rem;
         }
         
+        .last-editor {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-left: 10px;
+        }
+        
         .toolbar-actions {
             display: flex;
             gap: 10px;
@@ -358,32 +364,6 @@
             color: white;
         }
         
-        /* 光标位置指示器 */
-        .CodeMirror-cursor {
-            border-left: 2px solid #f8fafc;
-        }
-        
-        .remote-cursor {
-            position: absolute;
-            border-left: 2px solid;
-            height: 1.2em;
-            z-index: 5;
-        }
-        
-        .remote-cursor-label {
-            position: absolute;
-            top: -1.4em;
-            left: -2px;
-            font-size: 0.8em;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-weight: bold;
-            line-height: 1;
-            padding: 2px 6px;
-            border-radius: 3px;
-            white-space: nowrap;
-            z-index: 6;
-        }
-        
         /* 预览窗口样式 */
         .preview-container {
             position: fixed;
@@ -494,7 +474,10 @@
         
         <div class="editor-container">
             <div class="toolbar">
-                <div class="file-name" id="fileName">未选择文件</div>
+                <div>
+                    <span class="file-name" id="fileName">未选择文件</span>
+                    <span class="last-editor" id="lastEditor"></span>
+                </div>
                 <div class="toolbar-actions">
                     <button class="toolbar-btn run-btn" id="runBtn">
                         <i class="fas fa-play"></i> 运行
@@ -653,10 +636,10 @@
         let projects = [];
         let files = [];
         let collaborators = [];
-        let remoteCursors = {};
         let isSyncing = false;
-        let lastCursorPosition = null;
-        let realtimeSubscription = null;
+        let saveInterval = null;
+        let checkUpdateInterval = null;
+        let lastUpdateTime = null;
 
         // 代码补全关键词库
         const completions = {
@@ -728,9 +711,8 @@
             // 设置退出按钮
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
-                if (realtimeSubscription) {
-                    client.removeChannel(realtimeSubscription);
-                }
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
                 window.location.href = 'index.html';
             });
         });
@@ -770,34 +752,6 @@
             editor.on('change', (cm, change) => {
                 if (currentFile && !isSyncing) {
                     currentFile.hasChanges = true;
-                    
-                    // 如果是本地修改，则同步到其他客户端
-                    if (currentFile.id && change.origin !== 'setValue') {
-                        syncChangesToOthers();
-                    }
-                }
-            });
-
-            // 监听光标活动
-            editor.on('cursorActivity', () => {
-                if (currentFile && !isSyncing) {
-                    const cursor = editor.getCursor();
-                    if (!lastCursorPosition || 
-                        lastCursorPosition.line !== cursor.line || 
-                        lastCursorPosition.ch !== cursor.ch) {
-                        lastCursorPosition = cursor;
-                        syncCursorPosition();
-                    }
-                }
-            });
-
-            // 设置代码补全触发
-            editor.on('keyup', (cm, event) => {
-                // 在输入字母、数字或点后触发补全
-                if ((event.keyCode >= 65 && event.keyCode <= 90) || // A-Z
-                    (event.keyCode >= 48 && event.keyCode <= 57) || // 0-9
-                    event.keyCode === 190) { // .
-                    CodeMirror.commands.autocomplete(cm, null, {completeSingle: false});
                 }
             });
         }
@@ -897,11 +851,9 @@
 
         async function selectProject(projectId) {
             try {
-                // 取消之前的实时订阅
-                if (realtimeSubscription) {
-                    client.removeChannel(realtimeSubscription);
-                    realtimeSubscription = null;
-                }
+                // 清除之前的定时器
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
 
                 // 获取项目详情
                 const { data: project, error: projectError } = await client
@@ -951,8 +903,8 @@
                     projectItem.classList.add('active');
                 }
 
-                // 设置实时订阅
-                setupRealtimeUpdates(projectId);
+                // 设置定时保存和检查更新
+                setupTimers();
                 
             } catch (err) {
                 console.error('选择项目错误:', err);
@@ -960,98 +912,72 @@
             }
         }
 
-        function setupRealtimeUpdates(projectId) {
-            // 订阅文件内容更新
-            realtimeSubscription = client
-                .channel('file-updates')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'files',
-                        filter: `project_id=eq.${projectId}`
-                    },
-                    (payload) => {
-                        // 如果是当前文件且不是由本客户端触发的更新
-                        if (currentFile && payload.new.id === currentFile.id && 
-                            payload.new.last_updated_by !== currentUser.id) {
-                            applyRemoteChanges(payload.new.content);
-                        }
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'files',
-                        filter: `project_id=eq.${projectId}`
-                    },
-                    (payload) => {
-                        // 新文件添加到项目中
-                        if (!files.some(f => f.id === payload.new.id)) {
-                            files.push(payload.new);
-                            renderFileList();
-                        }
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'DELETE',
-                        schema: 'public',
-                        table: 'files',
-                        filter: `project_id=eq.${projectId}`
-                    },
-                    (payload) => {
-                        // 文件从项目中删除
-                        files = files.filter(f => f.id !== payload.old.id);
-                        renderFileList();
-                        if (currentFile && currentFile.id === payload.old.id) {
-                            currentFile = null;
-                            editor.setValue('');
-                            document.getElementById('fileName').textContent = '未选择文件';
-                        }
-                    }
-                )
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'project_members',
-                        filter: `project_id=eq.${projectId}`
-                    },
-                    async (payload) => {
-                        // 协作者变更
-                        const { data: projectMembers, error } = await client
-                            .from('project_members')
-                            .select('user_id, users(username)')
-                            .eq('project_id', projectId);
-                        
-                        if (!error) {
-                            collaborators = projectMembers.map(member => ({
-                                id: member.user_id,
-                                username: member.users.username
-                            }));
-                            renderCollaborators();
-                        }
-                    }
-                )
-                .subscribe();
+        function setupTimers() {
+            // 每1秒自动保存当前文件
+            saveInterval = setInterval(() => {
+                if (currentFile && currentFile.hasChanges) {
+                    saveCurrentFile();
+                }
+            }, 1000);
+
+            // 每1秒检查文件更新
+            checkUpdateInterval = setInterval(() => {
+                if (currentFile) {
+                    checkFileUpdates();
+                }
+            }, 1000);
         }
 
-        function applyRemoteChanges(content) {
+        async function checkFileUpdates() {
+            try {
+                const { data: file, error } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('id', currentFile.id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // 检查文件是否有更新
+                if (file.updated_at !== currentFile.updated_at) {
+                    // 如果是其他用户更新的
+                    if (file.last_updated_by !== currentUser.id) {
+                        applyRemoteChanges(file.content, file.last_updated_by);
+                    }
+                    
+                    // 更新本地文件信息
+                    currentFile.content = file.content;
+                    currentFile.updated_at = file.updated_at;
+                    currentFile.last_updated_by = file.last_updated_by;
+                    currentFile.hasChanges = false;
+                }
+                
+            } catch (err) {
+                console.error('检查文件更新错误:', err);
+            }
+        }
+
+        function applyRemoteChanges(content, lastUpdatedBy) {
             if (!currentFile) return;
             
             isSyncing = true;
             const cursor = editor.getCursor();
             editor.setValue(content);
             editor.setCursor(cursor);
-            currentFile.content = content;
-            currentFile.hasChanges = false;
+            
+            // 更新最后编辑者信息
+            updateLastEditorInfo(lastUpdatedBy);
+            
             isSyncing = false;
+        }
+
+        function updateLastEditorInfo(userId) {
+            if (!userId) return;
+            
+            const collaborator = collaborators.find(c => c.id === userId);
+            if (collaborator) {
+                document.getElementById('lastEditor').textContent = `最后编辑: ${collaborator.username}`;
+            }
         }
 
         function renderFileList() {
@@ -1086,6 +1012,9 @@
                 
                 // 更新文件名显示
                 document.getElementById('fileName').textContent = file.name;
+                
+                // 更新最后编辑者信息
+                updateLastEditorInfo(file.last_updated_by);
                 
                 // 高亮选中的文件
                 document.querySelectorAll('.file-item').forEach(item => {
@@ -1142,7 +1071,12 @@
                 if (error) throw error;
                 
                 currentFile.content = content;
+                currentFile.last_updated_by = currentUser.id;
+                currentFile.updated_at = now.toISOString();
                 currentFile.hasChanges = false;
+                
+                // 更新最后编辑者信息
+                updateLastEditorInfo(currentUser.id);
                 
                 console.log('文件保存成功');
                 
@@ -1150,144 +1084,6 @@
                 console.error('保存文件错误:', err);
                 alert('保存文件失败: ' + err.message);
             }
-        }
-
-        function syncChangesToOthers() {
-            if (!currentFile || isSyncing) return;
-            
-            const content = editor.getValue();
-            const now = new Date();
-            
-            // 使用Supabase的rpc调用实时同步
-            client
-                .from('files')
-                .update({ 
-                    content: content,
-                    last_updated_by: currentUser.id,
-                    updated_at: now.toISOString()
-                })
-                .eq('id', currentFile.id)
-                .then(({ error }) => {
-                    if (error) {
-                        console.error('同步更新失败:', error);
-                    }
-                });
-        }
-
-        function syncCursorPosition() {
-            if (!currentFile || !currentProject || isSyncing) return;
-            
-            const cursor = editor.getCursor();
-            
-            // 广播光标位置给其他协作者
-            client
-                .channel(`cursor-${currentProject.id}-${currentFile.id}`)
-                .send({
-                    type: 'broadcast',
-                    event: 'cursor-move',
-                    payload: {
-                        userId: currentUser.id,
-                        username: currentUser.username,
-                        fileId: currentFile.id,
-                        line: cursor.line,
-                        ch: cursor.ch
-                    }
-                });
-        }
-
-        function renderCollaborators() {
-            const collaboratorsContainer = document.getElementById('collaborators');
-            collaboratorsContainer.innerHTML = '';
-            
-            // 清除所有远程光标
-            clearRemoteCursors();
-            
-            collaborators.forEach(collaborator => {
-                const div = document.createElement('div');
-                div.className = 'collaborator';
-                div.innerHTML = `
-                    <div class="collaborator-avatar">
-                        ${collaborator.username.charAt(0).toUpperCase()}
-                        <div class="collaborator-active"></div>
-                    </div>
-                    <div class="collaborator-name">${collaborator.username}</div>
-                `;
-                collaboratorsContainer.appendChild(div);
-            });
-            
-            // 如果是项目成员，订阅光标移动事件
-            if (currentProject && currentFile) {
-                const channel = client.channel(`cursor-${currentProject.id}-${currentFile.id}`);
-                
-                channel
-                    .on('broadcast', { event: 'cursor-move' }, (payload) => {
-                        // 忽略自己的光标移动
-                        if (payload.payload.userId === currentUser.id) return;
-                        
-                        updateRemoteCursor(
-                            payload.payload.userId,
-                            payload.payload.username,
-                            payload.payload.line,
-                            payload.payload.ch
-                        );
-                    })
-                    .subscribe();
-            }
-        }
-
-        function updateRemoteCursor(userId, username, line, ch) {
-            // 移除旧的光标
-            const oldCursor = document.querySelector(`.remote-cursor-${userId}`);
-            if (oldCursor) {
-                oldCursor.remove();
-            }
-            
-            // 创建新的光标元素
-            const cursorDiv = document.createElement('div');
-            cursorDiv.className = `remote-cursor remote-cursor-${userId}`;
-            
-            // 创建光标标签
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'remote-cursor-label';
-            labelDiv.textContent = username;
-            labelDiv.style.backgroundColor = stringToColor(username);
-            
-            cursorDiv.appendChild(labelDiv);
-            cursorDiv.style.borderColor = stringToColor(username);
-            
-            // 计算光标位置
-            const coords = editor.cursorCoords({ line, ch }, 'page');
-            cursorDiv.style.left = `${coords.left}px`;
-            cursorDiv.style.top = `${coords.top}px`;
-            
-            // 添加到编辑器
-            document.querySelector('.CodeMirror').appendChild(cursorDiv);
-            
-            // 保存到远程光标集合
-            remoteCursors[userId] = cursorDiv;
-        }
-
-        function clearRemoteCursors() {
-            Object.values(remoteCursors).forEach(cursor => {
-                if (cursor && cursor.parentNode) {
-                    cursor.parentNode.removeChild(cursor);
-                }
-            });
-            remoteCursors = {};
-        }
-
-        // 根据用户名生成颜色
-        function stringToColor(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = str.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            
-            const c = (hash & 0x00FFFFFF)
-                .toString(16)
-                .toUpperCase();
-            
-            return '#' + '00000'.substring(0, 6 - c.length) + c;
         }
 
         // 运行代码
@@ -1396,6 +1192,24 @@
                 document.body.removeChild(downloadLink);
                 URL.revokeObjectURL(downloadLink.href);
             }, 100);
+        }
+
+        function renderCollaborators() {
+            const collaboratorsContainer = document.getElementById('collaborators');
+            collaboratorsContainer.innerHTML = '';
+            
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator';
+                div.innerHTML = `
+                    <div class="collaborator-avatar">
+                        ${collaborator.username.charAt(0).toUpperCase()}
+                        <div class="collaborator-active"></div>
+                    </div>
+                    <div class="collaborator-name">${collaborator.username}</div>
+                `;
+                collaboratorsContainer.appendChild(div);
+            });
         }
 
         function setupEventListeners() {
