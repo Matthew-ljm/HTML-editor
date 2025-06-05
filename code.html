@@ -1107,26 +1107,17 @@
             let mode;
             
             switch (language) {
-                case 'javascript':
-                    mode = 'javascript';
-                    break;
                 case 'html':
                     mode = 'htmlmixed';
-                    break;
-                case 'css':
-                    mode = 'css';
                     break;
                 case 'python':
                     mode = 'python';
                     break;
-                case 'java':
-                    mode = 'text/x-java';
-                    break;
-                case 'php':
-                    mode = 'php';
+                case 'cpp':
+                    mode = 'text/x-c++src';
                     break;
                 default:
-                    mode = 'javascript';
+                    mode = 'htmlmixed';
             }
             
             editor.setOption('mode', mode);
@@ -1137,13 +1128,14 @@
             
             try {
                 const content = editor.getValue();
+                const now = new Date();
                 
                 const { error } = await client
                     .from('files')
                     .update({ 
-                        content,
+                        content: content,
                         last_updated_by: currentUser.id,
-                        updated_at: new Date().toISOString()
+                        updated_at: now.toISOString()
                     })
                     .eq('id', currentFile.id);
                 
@@ -1164,14 +1156,15 @@
             if (!currentFile || isSyncing) return;
             
             const content = editor.getValue();
+            const now = new Date();
             
             // 使用Supabase的rpc调用实时同步
             client
                 .from('files')
                 .update({ 
-                    content,
+                    content: content,
                     last_updated_by: currentUser.id,
-                    updated_at: new Date().toISOString()
+                    updated_at: now.toISOString()
                 })
                 .eq('id', currentFile.id)
                 .then(({ error }) => {
@@ -1316,37 +1309,47 @@
                     htmlWindow.document.close();
                     break;
                     
-                case 'css':
-                    // 在预览窗口中显示CSS效果
+                case 'python':
+                    // 在预览窗口中显示Python执行结果
                     showPreview(`<html>
                         <head>
-                            <style>${content}</style>
+                            <title>Python执行结果</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; padding: 20px; }
+                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+                            </style>
                         </head>
                         <body>
-                            <h1>CSS预览</h1>
-                            <div class="box">这是一个盒子</div>
-                            <p>这是一段文本</p>
-                            <button>测试按钮</button>
+                            <h1>Python执行结果</h1>
+                            <div id="output"></div>
+                            <script>
+                                // 这里应该调用后端API来执行Python代码
+                                // 由于浏览器无法直接执行Python，这里只是模拟
+                                document.getElementById('output').innerHTML = 
+                                    '<pre>浏览器无法直接执行Python代码。\\n请使用后端API或Pyodide等解决方案。</pre>';
+                            <\/script>
                         </body>
                     </html>`);
                     break;
                     
-                case 'javascript':
-                    // 在预览窗口中执行JavaScript
+                case 'cpp':
+                    // 在预览窗口中显示C++执行结果
                     showPreview(`<html>
                         <head>
-                            <title>JavaScript执行结果</title>
+                            <title>C++执行结果</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; padding: 20px; }
+                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+                            </style>
                         </head>
                         <body>
-                            <h1>JavaScript执行结果</h1>
+                            <h1>C++执行结果</h1>
                             <div id="output"></div>
                             <script>
-                                try {
-                                    ${content}
-                                } catch(e) {
-                                    document.getElementById('output').innerHTML = 
-                                        '<div style="color:red">错误: ' + e.message + '</div>';
-                                }
+                                // 这里应该调用后端API来编译执行C++代码
+                                // 由于浏览器无法直接执行C++，这里只是模拟
+                                document.getElementById('output').innerHTML = 
+                                    '<pre>浏览器无法直接执行C++代码。\\n请使用后端API或Emscripten等解决方案。</pre>';
                             <\/script>
                         </body>
                     </html>`);
