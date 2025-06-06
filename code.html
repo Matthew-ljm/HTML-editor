@@ -639,6 +639,7 @@
         let isSyncing = false;
         let saveInterval = null;
         let checkUpdateInterval = null;
+        let checkFileListInterval = null;
         let lastUpdateTime = null;
 
         // 代码补全关键词库
@@ -713,6 +714,7 @@
                 cookieUtils.clearAuthCookies();
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
                 window.location.href = 'index.html';
             });
         });
@@ -854,6 +856,7 @@
                 // 清除之前的定时器
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
 
                 // 获取项目详情
                 const { data: project, error: projectError } = await client
@@ -867,16 +870,7 @@
                 currentProject = project;
                 
                 // 获取项目文件
-                const { data: projectFiles, error: filesError } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('project_id', projectId)
-                    .order('created_at', { ascending: true });
-                
-                if (filesError) throw filesError;
-                
-                files = projectFiles;
-                renderFileList();
+                await loadProjectFiles();
                 
                 // 获取项目协作者
                 const { data: projectMembers, error: membersError } = await client
@@ -912,6 +906,31 @@
             }
         }
 
+        async function loadProjectFiles() {
+            try {
+                if (!currentProject) return;
+                
+                const { data: projectFiles, error: filesError } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('project_id', currentProject.id)
+                    .order('created_at', { ascending: true });
+                
+                if (filesError) throw filesError;
+                
+                files = projectFiles;
+                renderFileList();
+                
+                // 如果有文件但当前没有选中文件，选择第一个文件
+                if (files.length > 0 && !currentFile) {
+                    await selectFile(files[0].id);
+                }
+                
+            } catch (err) {
+                console.error('加载项目文件错误:', err);
+            }
+        }
+
         function setupTimers() {
             // 每1秒自动保存当前文件
             saveInterval = setInterval(() => {
@@ -924,6 +943,13 @@
             checkUpdateInterval = setInterval(() => {
                 if (currentFile) {
                     checkFileUpdates();
+                }
+            }, 1000);
+            
+            // 每1秒刷新文件列表
+            checkFileListInterval = setInterval(() => {
+                if (currentProject) {
+                    loadProjectFiles();
                 }
             }, 1000);
         }
