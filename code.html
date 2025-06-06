@@ -1127,33 +1127,7 @@
                     // 在新窗口中打开HTML
                     const newWindow = window.open('', '_blank');
                     newWindow.document.open();
-                    newWindow.document.write(`
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>${currentFile.name}</title>
-                            <style>
-                                body { 
-                                    font-family: Arial, sans-serif; 
-                                    padding: 20px; 
-                                    margin: 0;
-                                }
-                                .container {
-                                    max-width: 1200px;
-                                    margin: 0 auto;
-                                    padding: 20px;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                ${content}
-                            </div>
-                        </body>
-                        </html>
-                    `);
-                    newWindow.document.close();
-                    break;
+                    newWindow.document.write(content);
                     
                 case 'python':
                     // 在预览窗口中显示Python执行结果
@@ -1444,7 +1418,7 @@
                     // 添加为协作者
                     const { error: memberError } = await client
                         .from('project_members')
-                        .insert([{
+                        .insert([
                             project_id: currentProject.id,
                             user_id: user.id,
                             role: 'editor'
