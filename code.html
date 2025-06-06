@@ -364,42 +364,6 @@
             color: white;
         }
         
-        /* 预览窗口样式 */
-        .preview-container {
-            position: fixed;
-            top: 0;
-            right: 0;
-            width: 50%;
-            height: 100%;
-            background: white;
-            z-index: 1000;
-            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-            display: none;
-        }
-        
-        .preview-header {
-            background-color: #1e293b;
-            color: white;
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .preview-content {
-            width: 100%;
-            height: calc(100% - 40px);
-            border: none;
-        }
-        
-        .close-preview {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
-        
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -500,17 +464,6 @@
     
     <div class="collaborators" id="collaborators">
         <!-- 协作者列表将通过JavaScript动态生成 -->
-    </div>
-    
-    <!-- 预览窗口 -->
-    <div class="preview-container" id="previewContainer">
-        <div class="preview-header">
-            <span>预览</span>
-            <button class="close-preview" id="closePreviewBtn">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <iframe class="preview-content" id="previewFrame"></iframe>
     </div>
     
     <!-- 新建项目模态框 -->
@@ -1118,77 +1071,27 @@
                 alert('请先选择文件');
                 return;
             }
-    
+            
             const content = editor.getValue();
-    
+            
             // 根据文件类型处理
             switch(currentFile.language) {
                 case 'html':
-                    // 直接在新窗口中运行HTML代码
-                    const newWindow = window.open();
-                    newWindow.document.open();
-                    newWindow.document.write(content);
-                    newWindow.document.close();
+                    // 在新窗口直接运行HTML代码
+                    const htmlWindow = window.open('', '_blank');
+                    htmlWindow.document.open();
+                    htmlWindow.document.write(content);
+                    htmlWindow.document.close();
                     break;
-            
+                    
                 case 'python':
-                    // 在预览窗口中显示Python执行结果
-                    showPreview(`<html>
-                        <head>
-                            <title>Python执行结果</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; padding: 20px; }
-                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>Python执行结果</h1>
-                            <div id="output"></div>
-                            <script>
-                                // 这里应该调用后端API来执行Python代码
-                                // 由于浏览器无法直接执行Python，这里只是模拟
-                                document.getElementById('output').innerHTML = 
-                                    '<pre>浏览器无法直接执行Python代码。\\n请使用后端API或Pyodide等解决方案。</pre>';
-                            <\/script>
-                        </body>
-                    </html>`);
-                    break;
-            
                 case 'cpp':
-                    // 在预览窗口中显示C++执行结果
-                    showPreview(`<html>
-                        <head>
-                            <title>C++执行结果</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; padding: 20px; }
-                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>C++执行结果</h1>
-                            <div id="output"></div>
-                            <script>
-                                // 这里应该调用后端API来编译执行C++代码
-                                // 由于浏览器无法直接执行C++，这里只是模拟
-                                document.getElementById('output').innerHTML = 
-                                    '<pre>浏览器无法直接执行C++代码。\\n请使用后端API或Emscripten等解决方案。</pre>';
-                            <\/script>
-                        </body>
-                    </html>`);
+                    alert('当前文件类型不支持运行');
                     break;
-            
+                    
                 default:
                     alert('当前文件类型不支持直接运行');
             }
-        }
-        
-        // 显示预览窗口
-        function showPreview(content) {
-            const previewContainer = document.getElementById('previewContainer');
-            const previewFrame = document.getElementById('previewFrame');
-            
-            previewContainer.style.display = 'block';
-            previewFrame.srcdoc = content;
         }
         
         // 下载当前文件
@@ -1361,11 +1264,6 @@
             // 下载按钮
             document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
             
-            // 关闭预览按钮
-            document.getElementById('closePreviewBtn').addEventListener('click', () => {
-                document.getElementById('previewContainer').style.display = 'none';
-            });
-            
             // 分享按钮
             document.getElementById('shareBtn').addEventListener('click', () => {
                 if (!currentProject) {
@@ -1420,7 +1318,7 @@
                     // 添加为协作者
                     const { error: memberError } = await client
                         .from('project_members')
-                        .insert([
+                        .insert([{
                             project_id: currentProject.id,
                             user_id: user.id,
                             role: 'editor'
