@@ -1112,73 +1112,75 @@
             }
         }
 
-        // 运行代码
-        function runCode() {
-            if (!currentFile) {
-                alert('请先选择文件');
-                return;
-            }
+// 运行代码
+function runCode() {
+    if (!currentFile) {
+        alert('请先选择文件');
+        return;
+    }
+    
+    const content = editor.getValue();
+    
+    // 根据文件类型处理
+    switch(currentFile.language) {
+        case 'html':
+            // 直接在新窗口中运行HTML代码
+            const newWindow = window.open();
+            newWindow.document.open();
+            newWindow.document.write(content);
+            newWindow.document.close();
+            break;
             
-            const content = editor.getValue();
+        case 'python':
+            // 在预览窗口中显示Python执行结果
+            showPreview(`<html>
+                <head>
+                    <title>Python执行结果</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Python执行结果</h1>
+                    <div id="output"></div>
+                    <script>
+                        // 这里应该调用后端API来执行Python代码
+                        // 由于浏览器无法直接执行Python，这里只是模拟
+                        document.getElementById('output').innerHTML = 
+                            '<pre>浏览器无法直接执行Python代码。\\n请使用后端API或Pyodide等解决方案。</pre>';
+                    <\/script>
+                </body>
+            </html>`);
+            break;
             
-            // 根据文件类型处理
-            switch(currentFile.language) {
-                case 'html':
-                    // 在新窗口中打开HTML
-                    const newWindow = window.open('', '_blank');
-                    newWindow.document.open();
-                    newWindow.document.write(content);
-                    
-                case 'python':
-                    // 在预览窗口中显示Python执行结果
-                    showPreview(`<html>
-                        <head>
-                            <title>Python执行结果</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; padding: 20px; }
-                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>Python执行结果</h1>
-                            <div id="output"></div>
-                            <script>
-                                // 这里应该调用后端API来执行Python代码
-                                // 由于浏览器无法直接执行Python，这里只是模拟
-                                document.getElementById('output').innerHTML = 
-                                    '<pre>浏览器无法直接执行Python代码。\\n请使用后端API或Pyodide等解决方案。</pre>';
-                            <\/script>
-                        </body>
-                    </html>`);
-                    break;
-                    
-                case 'cpp':
-                    // 在预览窗口中显示C++执行结果
-                    showPreview(`<html>
-                        <head>
-                            <title>C++执行结果</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; padding: 20px; }
-                                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>C++执行结果</h1>
-                            <div id="output"></div>
-                            <script>
-                                // 这里应该调用后端API来编译执行C++代码
-                                // 由于浏览器无法直接执行C++，这里只是模拟
-                                document.getElementById('output').innerHTML = 
-                                    '<pre>浏览器无法直接执行C++代码。\\n请使用后端API或Emscripten等解决方案。</pre>';
-                            <\/script>
-                        </body>
-                    </html>`);
-                    break;
-                    
-                default:
-                    alert('当前文件类型不支持直接运行');
-            }
-        }
+        case 'cpp':
+            // 在预览窗口中显示C++执行结果
+            showPreview(`<html>
+                <head>
+                    <title>C++执行结果</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <h1>C++执行结果</h1>
+                    <div id="output"></div>
+                    <script>
+                        // 这里应该调用后端API来编译执行C++代码
+                        // 由于浏览器无法直接执行C++，这里只是模拟
+                        document.getElementById('output').innerHTML = 
+                            '<pre>浏览器无法直接执行C++代码。\\n请使用后端API或Emscripten等解决方案。</pre>';
+                    <\/script>
+                </body>
+            </html>`);
+            break;
+            
+        default:
+            alert('当前文件类型不支持直接运行');
+    }
+}
         
         // 显示预览窗口
         function showPreview(content) {
