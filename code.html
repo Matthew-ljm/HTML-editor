@@ -752,7 +752,7 @@
 
             // 监听编辑器内容变化
             editor.on('change', (cm, change) => {
-                if (currentFile) {
+                if (currentFile && !isSyncing) {
                     currentFile.hasChanges = true;
                 }
             });
@@ -932,21 +932,21 @@
         }
 
         function setupTimers() {
-            // 每秒自动保存当前文件
+            // 每1秒自动保存当前文件
             saveInterval = setInterval(() => {
-                if (currentFile) {
+                if (currentFile && currentFile.hasChanges) {
                     saveCurrentFile();
                 }
             }, 1000);
 
-            // 每秒检查文件更新
+            // 每1秒检查文件更新
             checkUpdateInterval = setInterval(() => {
                 if (currentFile) {
                     checkFileUpdates();
                 }
             }, 1000);
             
-            // 每秒刷新文件列表
+            // 每1秒刷新文件列表
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
                     loadProjectFiles();
