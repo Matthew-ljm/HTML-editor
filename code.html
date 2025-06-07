@@ -364,112 +364,6 @@
             color: white;
         }
         
-        /* 同步通知样式 */
-        .sync-notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #1e293b;
-            padding: 12px 16px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            z-index: 1000;
-            animation: slide-in 0.3s ease-out;
-            border-left: 4px solid #3b82f6;
-        }
-        
-        .sync-notification.fade-out {
-            animation: fade-out 0.3s ease-out forwards;
-        }
-        
-        .sync-notification button {
-            background: none;
-            border: none;
-            color: #e2e8f0;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-        }
-        
-        .sync-notification .view-btn {
-            background-color: #3b82f6;
-        }
-        
-        .sync-notification .view-btn:hover {
-            background-color: #2563eb;
-        }
-        
-        .sync-notification .dismiss-btn:hover {
-            background-color: #334155;
-        }
-        
-        @keyframes slide-in {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        
-        @keyframes fade-out {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        
-        /* 冲突解决模态框 */
-        .conflict-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(15, 23, 42, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .conflict-content {
-            background-color: #1e293b;
-            padding: 20px;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .conflict-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .conflict-actions button {
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            border: none;
-            font-weight: 500;
-        }
-        
-        .keep-local-btn {
-            background-color: #10b981;
-            color: white;
-        }
-        
-        .use-remote-btn {
-            background-color: #3b82f6;
-            color: white;
-        }
-        
-        .merge-btn {
-            background-color: #8b5cf6;
-            color: white;
-        }
-        
         @media (max-width: 768px) {
             .sidebar {
                 width: 200px;
@@ -636,19 +530,6 @@
         </div>
     </div>
 
-    <!-- 冲突解决模态框 -->
-    <div class="modal" id="conflictModal">
-        <div class="modal-content">
-            <h3 class="modal-title">发现冲突</h3>
-            <p id="conflictMessage">文件已被其他人修改</p>
-            <div class="conflict-actions">
-                <button class="modal-btn keep-local-btn" id="keepLocalBtn">保留我的更改</button>
-                <button class="modal-btn use-remote-btn" id="useRemoteBtn">使用远程版本</button>
-                <button class="modal-btn merge-btn" id="mergeBtn">合并更改</button>
-            </div>
-        </div>
-    </div>
-
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
@@ -708,18 +589,11 @@
         let projects = [];
         let files = [];
         let collaborators = [];
-        let isRemoteChange = false;
-        let realtimeSubscription = null;
-
-        // 同步状态控制
-        const syncState = {
-            lastSyncTime: 0,
-            lastSaveTime: 0,
-            hasLocalChanges: false,
-            syncInterval: 60000, // 1分钟低频同步
-            immediateSyncDelay: 2000, // 修改后2秒同步
-            syncTimeout: null
-        };
+        let isSyncing = false;
+        let saveInterval = null;
+        let checkUpdateInterval = null;
+        let checkFileListInterval = null;
+        let lastUpdateTime = null;
 
         // 代码补全关键词库
         const completions = {
@@ -791,9 +665,9 @@
             // 设置退出按钮
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
-                if (realtimeSubscription) {
-                    client.removeChannel(realtimeSubscription);
-                }
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
                 window.location.href = 'index.html';
             });
         });
@@ -831,21 +705,10 @@
 
             // 监听编辑器内容变化
             editor.on('change', (cm, change) => {
-                if (currentFile && !isRemoteChange) {
-                    syncState.hasLocalChanges = true;
-                    scheduleImmediateSync();
+                if (currentFile && !isSyncing) {
+                    currentFile.hasChanges = true;
                 }
             });
-        }
-
-        // 安排立即同步
-        function scheduleImmediateSync() {
-            clearTimeout(syncState.syncTimeout);
-            syncState.syncTimeout = setTimeout(() => {
-                if (syncState.hasLocalChanges) {
-                    saveCurrentFile();
-                }
-            }, syncState.immediateSyncDelay);
         }
 
         // 自定义代码补全函数
@@ -943,10 +806,10 @@
 
         async function selectProject(projectId) {
             try {
-                // 取消之前的实时订阅
-                if (realtimeSubscription) {
-                    client.removeChannel(realtimeSubscription);
-                }
+                // 清除之前的定时器
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
 
                 // 获取项目详情
                 const { data: project, error: projectError } = await client
@@ -958,10 +821,6 @@
                 if (projectError) throw projectError;
                 
                 currentProject = project;
-                
-                // 重置同步状态
-                syncState.hasLocalChanges = false;
-                clearTimeout(syncState.syncTimeout);
                 
                 // 获取项目文件
                 await loadProjectFiles();
@@ -991,65 +850,12 @@
                     projectItem.classList.add('active');
                 }
 
-                // 设置定时器和实时更新
+                // 设置定时保存和检查更新
                 setupTimers();
                 
             } catch (err) {
                 console.error('选择项目错误:', err);
                 alert('加载项目失败: ' + err.message);
-            }
-        }
-
-        function setupTimers() {
-            // 低频保活同步
-            setInterval(() => {
-                if (!syncState.hasLocalChanges) {
-                    checkFileUpdates();
-                }
-            }, syncState.syncInterval);
-
-            // 初始化实时更新
-            setupRealtimeUpdates();
-        }
-
-        function setupRealtimeUpdates() {
-            if (!currentProject) return;
-            
-            realtimeSubscription = client
-                .channel('file-updates')
-                .on('postgres_changes', {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'files',
-                    filter: `project_id=eq.${currentProject.id}`
-                }, payload => {
-                    // 只有当不是自己修改时才处理
-                    if (payload.new.last_updated_by !== currentUser.id) {
-                        // 如果是当前文件
-                        if (currentFile && payload.new.id === currentFile.id) {
-                            handleFileUpdate(payload.new);
-                        }
-                        // 刷新文件列表
-                        loadProjectFiles();
-                    }
-                })
-                .subscribe();
-        }
-
-        async function handleFileUpdate(updatedFile) {
-            // 只有当远程版本更新时才处理
-            if (updatedFile.version > currentFile.version) {
-                const localContent = editor.getValue();
-                
-                if (updatedFile.content !== localContent) {
-                    showConflictResolution(updatedFile, updatedFile.last_updated_by);
-                } else {
-                    // 内容相同，只更新版本信息
-                    currentFile.version = updatedFile.version;
-                    currentFile.updated_at = updatedFile.updated_at;
-                    currentFile.last_updated_by = updatedFile.last_updated_by;
-                    updateLastEditorInfo(updatedFile.last_updated_by);
-                }
             }
         }
 
@@ -1073,23 +879,72 @@
                     await selectFile(files[0].id);
                 }
                 
-                // 如果当前文件在列表中，更新其信息
-                if (currentFile) {
-                    const updatedFile = files.find(f => f.id === currentFile.id);
-                    if (updatedFile && updatedFile.version > currentFile.version) {
-                        currentFile = updatedFile;
-                    }
-                }
-                
             } catch (err) {
                 console.error('加载项目文件错误:', err);
             }
         }
 
-        function applyRemoteChanges(content, lastUpdatedBy) {
-            if (!currentFile || isRemoteChange) return;
+        function setupTimers() {
+            // 每2秒自动保存当前文件（如果有更改）
+            saveInterval = setInterval(() => {
+                if (currentFile && currentFile.hasChanges) {
+                    saveCurrentFile();
+                }
+            }, 2000);
+
+            // 每2秒检查文件更新（如果没有本地更改）
+            checkUpdateInterval = setInterval(() => {
+                if (currentFile && !currentFile.hasChanges) {
+                    checkFileUpdates();
+                }
+            }, 2000);
             
-            isRemoteChange = true;
+            // 每5秒刷新文件列表
+            checkFileListInterval = setInterval(() => {
+                if (currentProject) {
+                    loadProjectFiles();
+                }
+            }, 5000);
+        }
+
+        async function checkFileUpdates() {
+            try {
+                if (!currentFile || currentFile.hasChanges) {
+                    // 如果本地有未保存的更改，不检查远程更新
+                    return;
+                }
+
+                const { data: file, error } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('id', currentFile.id)
+                    .single();
+                
+                if (error) throw error;
+                
+                // 检查文件是否有更新
+                if (file.updated_at !== currentFile.updated_at) {
+                    // 如果是其他用户更新的
+                    if (file.last_updated_by !== currentUser.id) {
+                        applyRemoteChanges(file.content, file.last_updated_by);
+                    }
+                    
+                    // 更新本地文件信息
+                    currentFile.content = file.content;
+                    currentFile.updated_at = file.updated_at;
+                    currentFile.last_updated_by = file.last_updated_by;
+                    currentFile.hasChanges = false;
+                }
+                
+            } catch (err) {
+                console.error('检查文件更新错误:', err);
+            }
+        }
+
+        function applyRemoteChanges(content, lastUpdatedBy) {
+            if (!currentFile) return;
+            
+            isSyncing = true;
             const cursor = editor.getCursor();
             editor.setValue(content);
             editor.setCursor(cursor);
@@ -1097,7 +952,7 @@
             // 更新最后编辑者信息
             updateLastEditorInfo(lastUpdatedBy);
             
-            isRemoteChange = false;
+            isSyncing = false;
         }
 
         function updateLastEditorInfo(userId) {
@@ -1107,91 +962,6 @@
             if (collaborator) {
                 document.getElementById('lastEditor').textContent = `最后编辑: ${collaborator.username}`;
             }
-        }
-
-        async function checkFileUpdates() {
-            try {
-                if (!currentFile || 
-                    syncState.hasLocalChanges || 
-                    Date.now() - syncState.lastSyncTime < 30000) { // 30秒内不同步
-                    return;
-                }
-                
-                const { data: remoteFile, error } = await client
-                    .from('files')
-                    .select('content, updated_at, last_updated_by, version')
-                    .eq('id', currentFile.id)
-                    .single();
-                
-                if (error) throw error;
-                
-                // 只有当远程版本更新时才处理
-                if (remoteFile.version > currentFile.version) {
-                    const localContent = editor.getValue();
-                    
-                    if (remoteFile.content !== localContent) {
-                        showConflictResolution(remoteFile, remoteFile.last_updated_by);
-                    }
-                    
-                    // 更新本地版本信息
-                    currentFile.version = remoteFile.version;
-                }
-                
-                syncState.lastSyncTime = Date.now();
-                
-            } catch (err) {
-                console.error('检查更新失败:', err);
-            }
-        }
-
-        function showConflictResolution(remoteFile, lastUpdatedBy) {
-            const conflictModal = document.getElementById('conflictModal');
-            const conflictMessage = document.getElementById('conflictMessage');
-            
-            const username = lastUpdatedBy === currentUser.id 
-                ? '您的其他设备' 
-                : collaborators.find(c => c.id === lastUpdatedBy)?.username || '其他协作者';
-            
-            conflictMessage.textContent = `文件已被${username}修改`;
-            
-            conflictModal.classList.add('active');
-            
-            // 清除之前的事件监听器
-            const keepLocalBtn = document.getElementById('keepLocalBtn');
-            const useRemoteBtn = document.getElementById('useRemoteBtn');
-            const mergeBtn = document.getElementById('mergeBtn');
-            
-            keepLocalBtn.onclick = null;
-            useRemoteBtn.onclick = null;
-            mergeBtn.onclick = null;
-            
-            // 添加新的事件监听器
-            keepLocalBtn.addEventListener('click', async () => {
-                // 强制推送本地版本
-                syncState.hasLocalChanges = true;
-                await saveCurrentFile();
-                conflictModal.classList.remove('active');
-            });
-            
-            useRemoteBtn.addEventListener('click', () => {
-                applyRemoteChanges(remoteFile.content, remoteFile.last_updated_by);
-                currentFile.version = remoteFile.version;
-                conflictModal.classList.remove('active');
-            });
-            
-            mergeBtn.addEventListener('click', () => {
-                mergeChanges(remoteFile.content);
-                conflictModal.classList.remove('active');
-            });
-        }
-
-        function mergeChanges(remoteContent) {
-            const localContent = editor.getValue();
-            // 简单合并策略：保留两者，用分隔符隔开
-            const mergedContent = `/* ===== 本地更改 ===== */\n${localContent}\n\n/* ===== 远程更改 ===== */\n${remoteContent}`;
-            editor.setValue(mergedContent);
-            syncState.hasLocalChanges = true;
-            scheduleImmediateSync();
         }
 
         function renderFileList() {
@@ -1216,21 +986,13 @@
                 const file = files.find(f => f.id === fileId);
                 if (!file) return;
                 
-                // 如果当前文件有未保存的更改，提示保存
-                if (syncState.hasLocalChanges && currentFile) {
-                    const shouldSave = confirm('当前文件有未保存的更改。是否保存？');
-                    if (shouldSave) {
-                        await saveCurrentFile();
-                    }
-                }
-                
                 currentFile = file;
                 
                 // 设置编辑器内容和模式
-                isRemoteChange = true;
+                isSyncing = true;
                 editor.setValue(file.content || '');
                 setEditorMode(file.language);
-                isRemoteChange = false;
+                isSyncing = false;
                 
                 // 更新文件名显示
                 document.getElementById('fileName').textContent = file.name;
@@ -1247,10 +1009,6 @@
                 if (fileItem) {
                     fileItem.classList.add('active');
                 }
-                
-                // 重置同步状态
-                syncState.hasLocalChanges = false;
-                clearTimeout(syncState.syncTimeout);
                 
             } catch (err) {
                 console.error('选择文件错误:', err);
@@ -1279,34 +1037,39 @@
         }
 
         async function saveCurrentFile() {
-            if (!currentFile || !syncState.hasLocalChanges) return;
+            if (!currentFile || !currentFile.hasChanges) return;
             
             try {
                 const content = editor.getValue();
                 const now = new Date();
                 
-                const { data: file, error } = await client
+                // 第一次保存
+                const { error } = await client
                     .from('files')
                     .update({ 
                         content: content,
                         last_updated_by: currentUser.id,
-                        updated_at: now.toISOString(),
-                        version: currentFile.version + 1
+                        updated_at: now.toISOString()
                     })
-                    .eq('id', currentFile.id)
-                    .eq('version', currentFile.version)
-                    .select()
-                    .single();
+                    .eq('id', currentFile.id);
                 
                 if (error) throw error;
                 
-                // 更新状态
+                // 第二次保存（确保一致性）
+                await client
+                    .from('files')
+                    .update({ 
+                        content: content,
+                        last_updated_by: currentUser.id,
+                        updated_at: now.toISOString()
+                    })
+                    .eq('id', currentFile.id);
+                
+                // 更新本地文件状态
                 currentFile.content = content;
-                currentFile.updated_at = now.toISOString();
-                currentFile.version = file.version;
                 currentFile.last_updated_by = currentUser.id;
-                syncState.hasLocalChanges = false;
-                syncState.lastSaveTime = Date.now();
+                currentFile.updated_at = now.toISOString();
+                currentFile.hasChanges = false;
                 
                 // 更新最后编辑者信息
                 updateLastEditorInfo(currentUser.id);
@@ -1315,24 +1078,7 @@
                 
             } catch (err) {
                 console.error('保存文件错误:', err);
-                await handleSaveError(err);
-            }
-        }
-
-        async function handleSaveError(error) {
-            if (error.code === 'PGRST116') { // 版本冲突
-                // 获取最新版本
-                const { data: latestFile, error: fetchError } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('id', currentFile.id)
-                    .single();
-                
-                if (fetchError) throw fetchError;
-                
-                showConflictResolution(latestFile, latestFile.last_updated_by);
-            } else {
-                alert('保存文件失败: ' + error.message);
+                alert('保存文件失败: ' + err.message);
             }
         }
 
@@ -1505,8 +1251,7 @@
                             content: '',
                             project_id: currentProject.id,
                             created_by: currentUser.id,
-                            last_updated_by: currentUser.id,
-                            version: 1
+                            last_updated_by: currentUser.id
                         }])
                         .select()
                         .single();
@@ -1518,7 +1263,7 @@
                     document.getElementById('fileNameInput').value = '';
                     
                     // 重新加载文件列表并选择新文件
-                    await loadProjectFiles();
+                    await selectProject(currentProject.id);
                     await selectFile(file.id);
                     
                 } catch (err) {
