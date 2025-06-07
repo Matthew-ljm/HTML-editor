@@ -1054,7 +1054,8 @@
                     .eq('id', currentFile.id);
                 
                 if (error) throw error;
-                
+                // 等待0.5秒
+                await new Promise(resolve => setTimeout(resolve, 500));
                 // 第二次保存（确保一致性）
                 await client
                     .from('files')
