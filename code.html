@@ -418,9 +418,7 @@
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
-                <ul class="project-list" id="projectList">
-                    <!-- 项目列表将通过JavaScript动态生成 -->
-                </ul>
+                <ul class="project-list" id="projectList"></ul>
             </div>
             
             <div class="sidebar-section">
@@ -430,9 +428,7 @@
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
-                <ul class="file-list" id="fileList">
-                    <!-- 文件列表将通过JavaScript动态生成 -->
-                </ul>
+                <ul class="file-list" id="fileList"></ul>
             </div>
         </div>
         
@@ -462,9 +458,7 @@
         </div>
     </div>
     
-    <div class="collaborators" id="collaborators">
-        <!-- 协作者列表将通过JavaScript动态生成 -->
-    </div>
+    <div class="collaborators" id="collaborators"></div>
     
     <!-- 新建项目模态框 -->
     <div class="modal" id="newProjectModal">
@@ -537,14 +531,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/php/php.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/javascript-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/html-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/css-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/anyword-hint.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css"></link>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/python-hint.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
+
     <script>
+        // C++ 标准库关键词（完整列表）
+        const cppKeywords = [
+            "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
+            "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t", 
+            "class", "compl", "concept", "const", "consteval", "constexpr", "const_cast", 
+            "continue", "co_await", "co_return", "co_yield", "decltype", "default", 
+            "delete", "do", "double", "dynamic_cast", "else", "enum", "explicit", 
+            "export", "extern", "false", "float", "for", "friend", "goto", "if", 
+            "inline", "int", "long", "mutable", "namespace", "new", "noexcept", "not", 
+            "not_eq", "nullptr", "operator", "or", "or_eq", "private", "protected", 
+            "public", "register", "reinterpret_cast", "requires", "return", "short", 
+            "signed", "sizeof", "static", "static_assert", "static_cast", "struct", 
+            "switch", "template", "this", "thread_local", "throw", "true", "try", 
+            "typedef", "typeid", "typename", "union", "unsigned", "using", "virtual", 
+            "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
+            "std", "string", "vector", "list", "deque", "array", "forward_list", 
+            "queue", "priority_queue", "stack", "set", "multiset", "map", "multimap", 
+            "unordered_set", "unordered_multiset", "unordered_map", "unordered_multimap",
+            "pair", "tuple", "variant", "optional", "any", "function", "bitset",
+            "cout", "cin", "cerr", "clog", "endl", "flush", "printf", "scanf",
+            "malloc", "free", "new", "delete", "sizeof", "alignof", "typeid",
+            "static_cast", "dynamic_cast", "const_cast", "reinterpret_cast",
+            "move", "forward", "swap", "make_pair", "make_tuple", "tie", "get",
+            "sort", "find", "copy", "fill", "reverse", "rotate", "shuffle",
+            "unique", "partition", "binary_search", "lower_bound", "upper_bound",
+            "min", "max", "minmax", "clamp", "accumulate", "reduce", "transform"
+        ];
+
         // Cookie操作工具函数
         const cookieUtils = {
             setCookie: function(name, value, days) {
@@ -595,74 +618,20 @@
         let checkFileListInterval = null;
         let lastUpdateTime = null;
 
-        // 代码补全关键词库
-        const completions = {
-            html: [
-                "div", "span", "p", "a", "img", "ul", "ol", "li", "table", "tr", "td", 
-                "th", "form", "input", "button", "select", "option", "textarea", "label", 
-                "h1", "h2", "h3", "h4", "h5", "h6", "header", "footer", "section", 
-                "article", "aside", "nav", "main", "figure", "figcaption", "video", 
-                "audio", "source", "canvas", "svg", "path", "circle", "rect", "line", 
-                "polygon", "style", "script", "link", "meta", "title", "head", "body", 
-                "html", "DOCTYPE", "br", "hr", "iframe", "object", "embed", "param"
-            ],
-            python: [
-                "def", "class", "if", "elif", "else", "for", "while", "try", "except", 
-                "finally", "with", "import", "from", "as", "return", "yield", "break", 
-                "continue", "pass", "raise", "lambda", "and", "or", "not", "is", "in", 
-                "True", "False", "None", "print", "input", "len", "range", "list", "dict", 
-                "tuple", "set", "str", "int", "float", "bool", "type", "isinstance", 
-                "issubclass", "super", "self", "property", "staticmethod", "classmethod", 
-                "abs", "all", "any", "bin", "chr", "ord", "dir", "divmod", "enumerate", 
-                "eval", "exec", "filter", "format", "getattr", "globals", "hasattr", 
-                "hash", "help", "hex", "id", "isinstance", "issubclass", "iter", "locals", 
-                "map", "max", "min", "next", "oct", "open", "pow", "repr", "reversed", 
-                "round", "setattr", "slice", "sorted", "sum", "vars", "zip"
-            ],
-            cpp: [
-                "auto", "break", "case", "char", "const", "continue", "default", "do", 
-                "double", "else", "enum", "extern", "float", "for", "goto", "if", 
-                "int", "long", "register", "return", "short", "signed", "sizeof", "static", 
-                "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", 
-                "while", "asm", "bool", "catch", "class", "const_cast", "delete", 
-                "dynamic_cast", "explicit", "false", "friend", "inline", "mutable", 
-                "namespace", "new", "operator", "private", "protected", "public", 
-                "reinterpret_cast", "static_cast", "template", "this", "throw", "true", 
-                "try", "typeid", "typename", "using", "virtual", "wchar_t", "cout", 
-                "cin", "endl", "string", "vector", "map", "set", "list", "queue", 
-                "stack", "algorithm", "iterator", "iostream", "fstream", "sstream", 
-                "cmath", "cstdlib", "cstring", "ctime", "cerrno", "climits", "cfloat", 
-                "cctype", "cassert", "main", "include", "define", "ifdef", "ifndef", 
-                "endif", "pragma", "error", "line", "undef", "defined", "elif", "else", 
-                "endif", "if", "ifdef", "ifndef", "include", "line", "pragma", "undef"
-            ]
-        };
-
         document.addEventListener('DOMContentLoaded', async () => {
-            // 检查用户是否已登录
             const { username, userId } = cookieUtils.checkAuthCookies();
             if (!username || !userId) {
                 window.location.href = 'index.html';
                 return;
             }
 
-            // 设置用户信息
-            currentUser = { 
-                username,
-                id: userId
-            };
+            currentUser = { username, id: userId };
             document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
 
-            // 初始化编辑器
             initEditor();
-
-            // 加载用户项目
             await loadUserProjects();
-
-            // 设置事件监听器
             setupEventListeners();
 
-            // 设置退出按钮
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
                 clearInterval(saveInterval);
@@ -691,7 +660,7 @@
                         if (cm.somethingSelected()) {
                             cm.indentSelection('add');
                         } else {
-                            cm.replaceSelection('\t');
+                            CodeMirror.commands.autocomplete(cm);
                         }
                     }
                 },
@@ -699,11 +668,21 @@
                     completeSingle: false,
                     alignWithWord: true,
                     closeCharacters: /[\s()\[\]{};:>,]/,
-                    hint: getCustomHintFunction()
+                    hint: function(cm, options) {
+                        const mode = cm.getMode().name;
+                        
+                        if (mode.includes('python')) {
+                            return CodeMirror.hint.python(cm, options);
+                        } else if (mode.includes('html')) {
+                            return CodeMirror.hint.html(cm, options);
+                        } else if (mode.includes('clike')) {
+                            return cppHint(cm, options);
+                        }
+                        return CodeMirror.hint.anyword(cm, options);
+                    }
                 }
             });
 
-            // 监听编辑器内容变化
             editor.on('change', (cm, change) => {
                 if (currentFile && !isSyncing) {
                     currentFile.hasChanges = true;
@@ -711,61 +690,56 @@
             });
         }
 
-        // 自定义代码补全函数
-        function getCustomHintFunction() {
-            return function(cm, options) {
-                const cursor = cm.getCursor();
-                const token = cm.getTokenAt(cursor);
-                const line = cm.getLine(cursor.line);
-                
-                // 获取当前语言模式
-                const mode = cm.getMode().name;
-                let lang = 'html';
-                
-                if (mode.includes('python')) lang = 'python';
-                else if (mode.includes('clike')) lang = 'cpp';
-                
-                // 获取当前语言的补全列表
-                let list = completions[lang] || [];
-                
-                // 添加当前文档中的单词
-                const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-                let match, words = {};
-                const text = cm.getValue();
-                
-                while (match = wordRegex.exec(text)) {
-                    words[match[0]] = true;
-                }
-                
-                list = list.concat(Object.keys(words));
-                
-                // 过滤匹配当前输入的补全项
-                const start = token.start;
-                const end = cursor.ch;
-                const currentWord = token.string.slice(0, end - start);
-                
-                const filteredList = list.filter(item => 
-                    item.toLowerCase().startsWith(currentWord.toLowerCase())
-                ).sort();
-                
-                if (filteredList.length === 0) return null;
-                
-                return {
-                    list: filteredList,
-                    from: CodeMirror.Pos(cursor.line, start),
-                    to: CodeMirror.Pos(cursor.line, end)
-                };
+        function cppHint(cm, options) {
+            const cursor = cm.getCursor();
+            const token = cm.getTokenAt(cursor);
+            const line = cm.getLine(cursor.line);
+            
+            const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+            let words = {};
+            const text = cm.getValue();
+            let match;
+            
+            while (match = wordRegex.exec(text)) {
+                words[match[0]] = true;
+            }
+            
+            const list = cppKeywords.concat(Object.keys(words));
+            
+            const start = token.start;
+            const end = cursor.ch;
+            const currentWord = token.string.slice(0, end - start);
+            
+            const filteredList = list.filter(item => 
+                item.toLowerCase().startsWith(currentWord.toLowerCase())
+            ).sort();
+            
+            if (filteredList.length === 0) return null;
+            
+            return {
+                list: filteredList,
+                from: CodeMirror.Pos(cursor.line, start),
+                to: CodeMirror.Pos(cursor.line, end)
             };
+        }
+
+        function setEditorMode(language) {
+            let mode;
+            
+            switch (language) {
+                case 'html': mode = 'htmlmixed'; break;
+                case 'python': mode = 'python'; break;
+                case 'cpp': mode = 'text/x-c++src'; break;
+                default: mode = 'htmlmixed';
+            }
+            
+            editor.setOption('mode', mode);
         }
 
         async function loadUserProjects() {
             try {
-                if (!currentUser?.id) {
-                    console.error('User ID is undefined');
-                    return;
-                }
+                if (!currentUser?.id) return;
 
-                // 获取用户参与的所有项目
                 const { data: userProjects, error } = await client
                     .from('project_members')
                     .select('project_id, projects(*)')
@@ -776,7 +750,6 @@
                 projects = userProjects.map(item => item.projects);
                 renderProjectList();
                 
-                // 如果有项目，默认选择第一个
                 if (projects.length > 0) {
                     await selectProject(projects[0].id);
                 }
@@ -794,10 +767,7 @@
             projects.forEach(project => {
                 const li = document.createElement('li');
                 li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `
-                    <i class="fas fa-folder"></i>
-                    <span>${project.name}</span>
-                `;
+                li.innerHTML = `<i class="fas fa-folder"></i><span>${project.name}</span>`;
                 li.dataset.projectId = project.id;
                 li.addEventListener('click', () => selectProject(project.id));
                 projectList.appendChild(li);
@@ -806,12 +776,10 @@
 
         async function selectProject(projectId) {
             try {
-                // 清除之前的定时器
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
                 clearInterval(checkFileListInterval);
 
-                // 获取项目详情
                 const { data: project, error: projectError } = await client
                     .from('projects')
                     .select('*')
@@ -821,11 +789,8 @@
                 if (projectError) throw projectError;
                 
                 currentProject = project;
-                
-                // 获取项目文件
                 await loadProjectFiles();
                 
-                // 获取项目协作者
                 const { data: projectMembers, error: membersError } = await client
                     .from('project_members')
                     .select('user_id, users(username)')
@@ -839,18 +804,7 @@
                 }));
                 
                 renderCollaborators();
-                
-                // 高亮选中的项目
-                document.querySelectorAll('.project-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                
-                const projectItem = document.querySelector(`.project-item[data-project-id="${projectId}"]`);
-                if (projectItem) {
-                    projectItem.classList.add('active');
-                }
-
-                // 设置定时保存和检查更新
+                renderProjectList();
                 setupTimers();
                 
             } catch (err) {
@@ -874,7 +828,6 @@
                 files = projectFiles;
                 renderFileList();
                 
-                // 如果有文件但当前没有选中文件，选择第一个文件
                 if (files.length > 0 && !currentFile) {
                     await selectFile(files[0].id);
                 }
@@ -885,21 +838,18 @@
         }
 
         function setupTimers() {
-            // 每1秒自动保存当前文件（如果有更改）
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
                     saveCurrentFile();
                 }
             }, 1000);
 
-            // 每1秒检查文件更新（如果没有本地更改）
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
                     checkFileUpdates();
                 }
             }, 1000);
             
-            // 每2秒刷新文件列表
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
                     loadProjectFiles();
@@ -909,10 +859,7 @@
 
         async function checkFileUpdates() {
             try {
-                if (!currentFile || currentFile.hasChanges) {
-                    // 如果本地有未保存的更改，不检查远程更新
-                    return;
-                }
+                if (!currentFile || currentFile.hasChanges) return;
 
                 const { data: file, error } = await client
                     .from('files')
@@ -922,14 +869,11 @@
                 
                 if (error) throw error;
                 
-                // 检查文件是否有更新
                 if (file.updated_at !== currentFile.updated_at) {
-                    // 如果是其他用户更新的
                     if (file.last_updated_by !== currentUser.id) {
                         applyRemoteChanges(file.content, file.last_updated_by);
                     }
                     
-                    // 更新本地文件信息
                     currentFile.content = file.content;
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
@@ -948,10 +892,7 @@
             const cursor = editor.getCursor();
             editor.setValue(content);
             editor.setCursor(cursor);
-            
-            // 更新最后编辑者信息
             updateLastEditorInfo(lastUpdatedBy);
-            
             isSyncing = false;
         }
 
@@ -971,10 +912,7 @@
             files.forEach(file => {
                 const li = document.createElement('li');
                 li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
-                li.innerHTML = `
-                    <i class="fas fa-file-code"></i>
-                    <span>${file.name}</span>
-                `;
+                li.innerHTML = `<i class="fas fa-file-code"></i><span>${file.name}</span>`;
                 li.dataset.fileId = file.id;
                 li.addEventListener('click', () => selectFile(file.id));
                 fileList.appendChild(li);
@@ -987,53 +925,24 @@
                 if (!file) return;
                 
                 currentFile = file;
-                
-                // 设置编辑器内容和模式
                 isSyncing = true;
                 editor.setValue(file.content || '');
                 setEditorMode(file.language);
                 isSyncing = false;
-                
-                // 更新文件名显示
                 document.getElementById('fileName').textContent = file.name;
-                
-                // 更新最后编辑者信息
                 updateLastEditorInfo(file.last_updated_by);
                 
-                // 高亮选中的文件
                 document.querySelectorAll('.file-item').forEach(item => {
                     item.classList.remove('active');
                 });
                 
                 const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
-                if (fileItem) {
-                    fileItem.classList.add('active');
-                }
+                if (fileItem) fileItem.classList.add('active');
                 
             } catch (err) {
                 console.error('选择文件错误:', err);
                 alert('加载文件失败: ' + err.message);
             }
-        }
-
-        function setEditorMode(language) {
-            let mode;
-            
-            switch (language) {
-                case 'html':
-                    mode = 'htmlmixed';
-                    break;
-                case 'python':
-                    mode = 'python';
-                    break;
-                case 'cpp':
-                    mode = 'text/x-c++src';
-                    break;
-                default:
-                    mode = 'htmlmixed';
-            }
-            
-            editor.setOption('mode', mode);
         }
 
         async function saveCurrentFile() {
@@ -1043,7 +952,6 @@
                 const content = editor.getValue();
                 const now = new Date();
                 
-                // 第一次保存
                 const { error } = await client
                     .from('files')
                     .update({ 
@@ -1054,9 +962,8 @@
                     .eq('id', currentFile.id);
                 
                 if (error) throw error;
-                // 等待0.5秒
+                
                 await new Promise(resolve => setTimeout(resolve, 500));
-                // 第二次保存（确保一致性）
                 await client
                     .from('files')
                     .update({ 
@@ -1066,9 +973,7 @@
                     })
                     .eq('id', currentFile.id);
 
-                // 等待0.5秒
                 await new Promise(resolve => setTimeout(resolve, 500));
-                // 第三次保存（确保一致性）
                 await client
                     .from('files')
                     .update({ 
@@ -1078,16 +983,11 @@
                     })
                     .eq('id', currentFile.id);
 
-                // 更新本地文件状态
                 currentFile.content = content;
                 currentFile.last_updated_by = currentUser.id;
                 currentFile.updated_at = now.toISOString();
                 currentFile.hasChanges = false;
-                
-                // 更新最后编辑者信息
                 updateLastEditorInfo(currentUser.id);
-                
-                console.log('文件保存成功');
                 
             } catch (err) {
                 console.error('保存文件错误:', err);
@@ -1095,7 +995,6 @@
             }
         }
 
-        // 运行代码
         function runCode() {
             if (!currentFile) {
                 alert('请先选择文件');
@@ -1104,27 +1003,22 @@
             
             const content = editor.getValue();
             
-            // 根据文件类型处理
             switch(currentFile.language) {
                 case 'html':
-                    // 在新窗口直接运行HTML代码
                     const htmlWindow = window.open('', '_blank');
                     htmlWindow.document.open();
                     htmlWindow.document.write(content);
                     htmlWindow.document.close();
                     break;
-                    
                 case 'python':
                 case 'cpp':
                     alert('当前文件类型不支持运行');
                     break;
-                    
                 default:
                     alert('当前文件类型不支持直接运行');
             }
         }
         
-        // 下载当前文件
         function downloadCurrentFile() {
             if (!currentFile) {
                 alert('请先选择文件');
@@ -1133,20 +1027,12 @@
             
             const content = editor.getValue();
             const fileName = currentFile.name;
-            
-            // 创建Blob对象
             const blob = new Blob([content], { type: 'text/plain' });
-            
-            // 创建下载链接
             const downloadLink = document.createElement('a');
             downloadLink.href = URL.createObjectURL(blob);
             downloadLink.download = fileName;
-            
-            // 触发点击事件
             document.body.appendChild(downloadLink);
             downloadLink.click();
-            
-            // 清理
             setTimeout(() => {
                 document.body.removeChild(downloadLink);
                 URL.revokeObjectURL(downloadLink.href);
@@ -1172,18 +1058,15 @@
         }
 
         function setupEventListeners() {
-            // 新建项目按钮
             document.getElementById('addProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.add('active');
                 document.getElementById('projectNameInput').focus();
             });
             
-            // 取消新建项目
             document.getElementById('cancelProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.remove('active');
             });
             
-            // 确认新建项目
             document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
                 const name = document.getElementById('projectNameInput').value.trim();
                 const description = document.getElementById('projectDescInput').value.trim();
@@ -1206,7 +1089,6 @@
                     
                     if (error) throw error;
                     
-                    // 添加创建者为项目成员
                     await client
                         .from('project_members')
                         .insert([{
@@ -1215,12 +1097,9 @@
                             role: 'owner'
                         }]);
                     
-                    // 关闭模态框并重置输入
                     document.getElementById('newProjectModal').classList.remove('active');
                     document.getElementById('projectNameInput').value = '';
                     document.getElementById('projectDescInput').value = '';
-                    
-                    // 重新加载项目列表
                     await loadUserProjects();
                     
                 } catch (err) {
@@ -1229,7 +1108,6 @@
                 }
             });
             
-            // 新建文件按钮
             document.getElementById('addFileBtn').addEventListener('click', () => {
                 if (!currentProject) {
                     alert('请先选择项目');
@@ -1240,12 +1118,10 @@
                 document.getElementById('fileNameInput').focus();
             });
             
-            // 取消新建文件
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
                 document.getElementById('newFileModal').classList.remove('active');
             });
             
-            // 确认新建文件
             document.getElementById('confirmFileBtn').addEventListener('click', async () => {
                 const name = document.getElementById('fileNameInput').value.trim();
                 const language = document.getElementById('fileLanguageSelect').value;
@@ -1271,11 +1147,8 @@
                     
                     if (error) throw error;
                     
-                    // 关闭模态框并重置输入
                     document.getElementById('newFileModal').classList.remove('active');
                     document.getElementById('fileNameInput').value = '';
-                    
-                    // 重新加载文件列表并选择新文件
                     await selectProject(currentProject.id);
                     await selectFile(file.id);
                     
@@ -1285,16 +1158,10 @@
                 }
             });
             
-            // 保存按钮
             document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
-            
-            // 运行按钮
             document.getElementById('runBtn').addEventListener('click', runCode);
-            
-            // 下载按钮
             document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
             
-            // 分享按钮
             document.getElementById('shareBtn').addEventListener('click', () => {
                 if (!currentProject) {
                     alert('请先选择项目');
@@ -1306,7 +1173,6 @@
                 document.getElementById('shareModal').classList.add('active');
             });
             
-            // 复制链接按钮
             document.getElementById('copyLinkBtn').addEventListener('click', () => {
                 const shareInput = document.getElementById('shareLinkInput');
                 shareInput.select();
@@ -1314,10 +1180,8 @@
                 alert('链接已复制到剪贴板');
             });
             
-            // 下载文件按钮（在分享模态框中）
             document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
             
-            // 添加协作者按钮
             document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
                 const username = document.getElementById('collaboratorInput').value.trim();
                 
@@ -1327,7 +1191,6 @@
                 }
                 
                 try {
-                    // 查找用户
                     const { data: user, error: userError } = await client
                         .from('users')
                         .select('id')
@@ -1338,14 +1201,12 @@
                         throw new Error('用户不存在');
                     }
                     
-                    // 检查是否已经是协作者
                     const isAlreadyMember = collaborators.some(c => c.id === user.id);
                     if (isAlreadyMember) {
                         alert('该用户已经是项目成员');
                         return;
                     }
                     
-                    // 添加为协作者
                     const { error: memberError } = await client
                         .from('project_members')
                         .insert([{
@@ -1356,7 +1217,6 @@
                     
                     if (memberError) throw memberError;
                     
-                    // 更新协作者列表
                     collaborators.push({
                         id: user.id,
                         username
@@ -1364,7 +1224,6 @@
                     
                     renderCollaborators();
                     document.getElementById('collaboratorInput').value = '';
-                    
                     alert(`已成功添加 ${username} 为协作者`);
                     
                 } catch (err) {
@@ -1373,12 +1232,10 @@
                 }
             });
             
-            // 关闭分享模态框
             document.getElementById('closeShareBtn').addEventListener('click', () => {
                 document.getElementById('shareModal').classList.remove('active');
             });
             
-            // 点击模态框外部关闭
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
