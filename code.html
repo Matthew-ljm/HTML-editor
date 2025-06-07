@@ -885,26 +885,26 @@
         }
 
         function setupTimers() {
-            // 每2秒自动保存当前文件（如果有更改）
+            // 每1秒自动保存当前文件（如果有更改）
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
                     saveCurrentFile();
                 }
-            }, 2000);
+            }, 1000);
 
-            // 每2秒检查文件更新（如果没有本地更改）
+            // 每1秒检查文件更新（如果没有本地更改）
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
                     checkFileUpdates();
                 }
-            }, 2000);
+            }, 1000);
             
-            // 每3秒刷新文件列表
+            // 每2秒刷新文件列表
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
                     loadProjectFiles();
                 }
-            }, 3000);
+            }, 2000);
         }
 
         async function checkFileUpdates() {
