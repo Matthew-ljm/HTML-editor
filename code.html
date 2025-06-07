@@ -1066,18 +1066,6 @@
                     })
                     .eq('id', currentFile.id);
 
-
-
-                // 第三次保存（确保一致性）
-                await client
-                    .from('files')
-                    .update({ 
-                        content: content,
-                        last_updated_by: currentUser.id,
-                        updated_at: now.toISOString()
-                    })
-                    .eq('id', currentFile.id);
-
                 // 更新本地文件状态
                 currentFile.content = content;
                 currentFile.last_updated_by = currentUser.id;
