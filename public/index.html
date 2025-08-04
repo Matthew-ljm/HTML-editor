@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M-Code - Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    <h1>M-Code Editor</h1>
+    <div id="errorMessage" class="error"></div>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <div>
+        <input type="checkbox" id="rememberMe">
+        <label for="rememberMe">Remember me</label>
+      </div>
+      <button type="submit">Login</button>
+    </form>
+    <p>Don't have an account? <a href="/register.html">Register</a></p>
+  </div>
+
+  <script type="module">
+    import { authAPI } from '/js/api.js';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const rememberMe = document.getElementById('rememberMe').checked;
+
+      try {
+        const result = await authAPI.login({ username, password, rememberMe });
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('user', JSON.stringify(result.user));
+        window.location.href = '/code.html';
+      } catch (error) {
+        document.getElementById('errorMessage').textContent = error.message;
+      }
+    });
+  </script>
+</body>
+</html>

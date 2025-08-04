@@ -1,0 +1,9 @@
+{
+  "name": "m-code",
+  "version": "1.0.0",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.31.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.1"
+  }
+}
