@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-Code协作编辑器 - 登录</title>
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: #4ade80;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #4ade80, #22d3ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e2e8f0;
+        }
+        
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+        
+        input {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            background: rgba(30, 41, 59, 0.7);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #4ade80;
+            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.2);
+        }
+        
+        .tip {
+            background: rgba(74, 222, 128, 0.15);
+            border-left: 4px solid #4ade80;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: left;
+        }
+        
+        .tip a {
+            color: #cbd5e1;
+            text-decoration: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(to right, #0ea5e9, #4ade80);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .error {
+            color: #f87171;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+        
+        .footer {
+            margin-top: 25px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .footer a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 20px;
+                padding: 25px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            h2 {
+                font-size: 1.3rem;
+            }
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+        }
+        
+        .remember-me input {
+            width: auto;
+            margin-right: 10px;
+            padding: 0;
+        }
+        
+        .remember-me label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .remember-options {
+            display: none;
+            margin-left: 25px;
+            margin-top: 5px;
+        }
+        
+        .remember-options.show {
+            display: block;
+        }
+        
+        .remember-options select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.7);
+            color: white;
+            font-size: 0.9rem;
+        }
+        
+        .remember-options select:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <i class="fas fa-code"></i>
+        </div>
+        <h1>M-Code协作编辑器</h1>
+        <h2>登录</h2>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" name="username" placeholder="请输入您的姓名" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">密码</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="请输入您的密码" required>
+                </div>
+            </div>
+        
+            <div class="tip"> 
+                <i class="fas fa-info-circle"></i> <a href="https://m-code.top/feedback">忘记密码？点此反馈</a>
+            </div>
+            
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                <label for="rememberMe">记住密码</label>
+                <div class="remember-options" id="rememberOptions">
+                    <select id="rememberDuration">
+                        <option value="1">1天</option>
+                        <option value="7" selected>7天</option>
+                        <option value="30">30天</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button type="submit" id="loginBtn">
+                <i class="fas fa-sign-in-alt"></i> 登录
+            </button>
+            
+            <div id="errorMessage" class="error"></div>
+        </form>
+        
+        <div class="footer">
+            <p>没有账号? <a href="register.html">立即注册</a></p>
+            <p>© 2025 M-Code协作编辑器</p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
+    <script>
+        console.error = function() {};
+        console.warn = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+        console.table = function() {};
+        console.dir = function() {};
+        console.trace = function() {};
+        console.group = function() {};
+        console.groupEnd = function() {};
+        console.groupCollapsed = function() {};
+        console.time = function() {};
+        console.timeEnd = function() {};
+        console.count = function() {};
+        console.clear = function() {};
+        console.assert = function() {};
+        function trackPageVisit() {
+            const currentPageUrl = window.location.href;
+            const trackerUrl = 'https://mail.m-code.top/';
+            const fullTrackerUrl = `${trackerUrl}?url=${encodeURIComponent(currentPageUrl)}`;
+            var iframe = document.createElement('iframe');
+            iframe.src = fullTrackerUrl;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        function setupTracking() {
+            if (document.readyState === 'complete') {
+                setTimeout(trackPageVisit, 1000);
+            } else {
+                window.addEventListener('load', () => {
+                    setTimeout(trackPageVisit, 1000);
+                });
+            }
+        }
+        
+        setupTracking();
+        
+        // Cookie操作工具函数
+        const cookieUtils = {
+            setCookie: function(name, value, seconds) {
+                const date = new Date();
+                date.setTime(date.getTime() + (seconds * 1000));
+                const expires = "expires=" + date.toUTCString();
+                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
+            },
+            getCookie: function(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            },
+            deleteCookie: function(name) {
+                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+            },
+            setAuthCookies: function(username, userId, seconds) {
+                this.setCookie('mcode_username', username, seconds);
+                this.setCookie('mcode_userid', userId, seconds);
+            },
+            clearAuthCookies: function() {
+                this.deleteCookie('mcode_username');
+                this.deleteCookie('mcode_userid');
+            },
+            checkAuthCookies: function() {
+                const username = this.getCookie('mcode_username');
+                const userId = this.getCookie('mcode_userid');
+                return { username, userId };
+            }
+        };
+
+        // 初始化Supabase客户端
+        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
+        const client = supabase.createClient(supabaseUrl, supabaseKey);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查是否已有有效Cookie
+            const { username, userId } = cookieUtils.checkAuthCookies();
+            if (username && userId) {
+                window.location.href = 'code.html';
+                return;
+            }
+
+            const loginBtn = document.getElementById('loginBtn');
+            const errorElement = document.getElementById('errorMessage');
+            const rememberMeCheckbox = document.getElementById('rememberMe');
+            const rememberOptions = document.getElementById('rememberOptions');
+            const rememberDuration = document.getElementById('rememberDuration');
+            
+            // 记住我选项切换
+            rememberMeCheckbox.addEventListener('change', () => {
+                if (rememberMeCheckbox.checked) {
+                    rememberOptions.classList.add('show');
+                } else {
+                    rememberOptions.classList.remove('show');
+                }
+            });
+            
+            // 设置表单提交事件
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                const rememberMe = rememberMeCheckbox.checked;
+                const duration = rememberMe ? parseInt(rememberDuration.value) : 0;
+                
+                // 计算cookie有效期（秒）
+                let cookieExpiry;
+                if (rememberMe) {
+                    // 记住密码的情况
+                    cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
+                } else {
+                    // 不记住密码的情况，10秒有效期
+                    cookieExpiry = 10;
+                }
+                
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+                errorElement.textContent = '';
+                
+                try {
+                    // 查询用户是否存在
+                    const { data: user, error } = await client
+                        .from('users')
+                        .select('id, username, password')
+                        .eq('username', username)
+                        .eq('password', password)
+                        .single();
+                    
+                    if (error || !user) {
+                        throw new Error('用户名或密码错误');
+                    }
+                    
+                    // 设置认证Cookie
+                    cookieUtils.setAuthCookies(user.username, user.id, cookieExpiry);
+                    
+                    errorElement.textContent = '登录成功！正在跳转...';
+                    errorElement.style.color = '#4ade80';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'code.html';
+                    }, 1500);
+                    
+                } catch (err) {
+                    console.error('登录错误:', err);
+                    errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
+                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
+                    loginBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
