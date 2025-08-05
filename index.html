@@ -305,7 +305,7 @@
                 errorElement.textContent = '';
                 
                 try {
-                    // 调用Vercel API
+                    // 调用登录API
                     const response = await fetch('/api/login', {
                         method: 'POST',
                         headers: {
@@ -328,8 +328,22 @@
                         throw new Error(errorData.message || '登录失败，请重试');
                     }
 
-                    // 登录成功
+                    // 登录成功，获取响应数据
                     const result = await response.json();
+                    
+                    // 设置普通Cookie（非HttpOnly）
+                    if (rememberMe && result.token) {
+                        const expirationDate = new Date();
+                        expirationDate.setDate(expirationDate.getDate() + duration);
+                        document.cookie = `token=${result.token}; expires=${expirationDate.toUTCString()}; path=/`;
+                        document.cookie = `username=${username}; expires=${expirationDate.toUTCString()}; path=/`;
+                    } else if (result.token) {
+                        // 会话Cookie，关闭浏览器后失效
+                        document.cookie = `token=${result.token}; path=/`;
+                        document.cookie = `username=${username}; path=/`;
+                    }
+
+                    // 显示成功信息
                     errorElement.textContent = result.message || '登录成功！正在跳转...';
                     errorElement.style.color = '#4ade80';
                     
