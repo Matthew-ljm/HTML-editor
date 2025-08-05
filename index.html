@@ -7,6 +7,7 @@
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 保持原有样式不变 */
         * {
             margin: 0;
             padding: 0;
@@ -274,8 +275,8 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
+        // 禁用控制台输出
         console.error = function() {};
         console.warn = function() {};
         console.info = function() {};
@@ -291,6 +292,8 @@
         console.count = function() {};
         console.clear = function() {};
         console.assert = function() {};
+        
+        // 页面访问跟踪
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
             const trackerUrl = 'https://mail.m-code.top/';
@@ -313,46 +316,34 @@
         
         setupTracking();
         
-        // Cookie操作工具函数
+        // Cookie操作工具函数 - 只处理非httpOnly的Cookie
         const cookieUtils = {
-            setCookie: function(name, value, seconds) {
-                const date = new Date();
-                date.setTime(date.getTime() + (seconds * 1000));
-                const expires = "expires=" + date.toUTCString();
-                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
-            },
             getCookie: function(name) {
                 const value = `; ${document.cookie}`;
                 const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
+                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
             },
             deleteCookie: function(name) {
                 document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
             },
-            setAuthCookies: function(username, userId, seconds) {
-                this.setCookie('mcode_username', username, seconds);
-                this.setCookie('mcode_userid', userId, seconds);
-            },
-            clearAuthCookies: function() {
+            clearNonHttpOnlyAuthCookies: function() {
                 this.deleteCookie('mcode_username');
-                this.deleteCookie('mcode_userid');
             },
             checkAuthCookies: function() {
+                // 只能检查到非httpOnly的username
                 const username = this.getCookie('mcode_username');
-                const userId = this.getCookie('mcode_userid');
-                return { username, userId };
+                // userId是httpOnly的，前端无法直接读取，这里返回存在性判断
+                return { 
+                    hasCookies: !!username,
+                    username 
+                };
             }
         };
 
-        // 初始化Supabase客户端
-        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const client = supabase.createClient(supabaseUrl, supabaseKey);
-
         document.addEventListener('DOMContentLoaded', () => {
             // 检查是否已有有效Cookie
-            const { username, userId } = cookieUtils.checkAuthCookies();
-            if (username && userId) {
+            const { hasCookies } = cookieUtils.checkAuthCookies();
+            if (hasCookies) {
                 window.location.href = 'code.html';
                 return;
             }
@@ -381,36 +372,27 @@
                 const rememberMe = rememberMeCheckbox.checked;
                 const duration = rememberMe ? parseInt(rememberDuration.value) : 0;
                 
-                // 计算cookie有效期（秒）
-                let cookieExpiry;
-                if (rememberMe) {
-                    // 记住密码的情况
-                    cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
-                } else {
-                    // 不记住密码的情况，10秒有效期
-                    cookieExpiry = 10;
-                }
-                
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
                 errorElement.textContent = '';
                 
                 try {
-                    // 查询用户是否存在
-                    const { data: user, error } = await client
-                        .from('users')
-                        .select('id, username, password')
-                        .eq('username', username)
-                        .eq('password', password)
-                        .single();
+                    // 调用后端API进行登录验证
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password, rememberMe, duration })
+                    });
                     
-                    if (error || !user) {
-                        throw new Error('用户名或密码错误');
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || '登录失败，请检查用户名和密码');
                     }
                     
-                    // 设置认证Cookie
-                    cookieUtils.setAuthCookies(user.username, user.id, cookieExpiry);
-                    
+                    // 登录成功，后端已经设置好了Cookie
                     errorElement.textContent = '登录成功！正在跳转...';
                     errorElement.style.color = '#4ade80';
                     
@@ -419,8 +401,7 @@
                     }, 1500);
                     
                 } catch (err) {
-                    console.error('登录错误:', err);
-                    errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
+                    errorElement.textContent = err.message || '登录失败，请检查网络连接';
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
                     loginBtn.disabled = false;
                 }
