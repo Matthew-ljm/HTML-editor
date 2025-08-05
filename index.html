@@ -344,11 +344,6 @@
             }
         };
 
-        // 初始化Supabase客户端
-        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const client = supabase.createClient(supabaseUrl, supabaseKey);
-
         document.addEventListener('DOMContentLoaded', () => {
             // 检查是否已有有效Cookie
             const { username, userId } = cookieUtils.checkAuthCookies();
@@ -372,7 +367,7 @@
                 }
             });
             
-            // 设置表单提交事件
+            // 修改表单提交事件，改为调用后端API
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
@@ -384,11 +379,9 @@
                 // 计算cookie有效期（秒）
                 let cookieExpiry;
                 if (rememberMe) {
-                    // 记住密码的情况
                     cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
                 } else {
-                    // 不记住密码的情况，10秒有效期
-                    cookieExpiry = 10;
+                    cookieExpiry = 10; // 不记住密码，10秒有效期
                 }
                 
                 loginBtn.disabled = true;
@@ -396,20 +389,23 @@
                 errorElement.textContent = '';
                 
                 try {
-                    // 查询用户是否存在
-                    const { data: user, error } = await client
-                        .from('users')
-                        .select('id, username, password')
-                        .eq('username', username)
-                        .eq('password', password)
-                        .single();
+                    // 调用后端登录API
+                    const response = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
                     
-                    if (error || !user) {
-                        throw new Error('用户名或密码错误');
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || '登录失败，请检查用户名和密码');
                     }
                     
-                    // 设置认证Cookie
-                    cookieUtils.setAuthCookies(user.username, user.id, cookieExpiry);
+                    // 登录成功，设置认证Cookie
+                    cookieUtils.setAuthCookies(result.username, result.userId, cookieExpiry);
                     
                     errorElement.textContent = '登录成功！正在跳转...';
                     errorElement.style.color = '#4ade80';
@@ -419,8 +415,7 @@
                     }, 1500);
                     
                 } catch (err) {
-                    console.error('登录错误:', err);
-                    errorElement.textContent = err.message || '登录失败，请检查用户名和密码';
+                    errorElement.textContent = err.message || '登录失败，请重试';
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
                     loginBtn.disabled = false;
                 }
