@@ -1,15 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// 从环境变量获取Supabase配置（在Vercel后台设置）
+// 从环境变量获取Supabase配置（改用anon/public密钥）
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; // 现在用anon/public密钥
 
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('请配置Supabase环境变量');
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('请配置Supabase环境变量（URL和ANON_KEY）');
 }
 
-// 初始化Supabase客户端
-const supabase = createClient(supabaseUrl, supabaseKey);
+// 初始化Supabase客户端（使用anon/public密钥）
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // 解析Cookie的工具函数
 function parseCookies(cookieHeader) {
@@ -39,12 +39,12 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // 查询用户
+        // 查询用户（现在使用anon密钥，依赖RLS策略限制权限）
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, username, password')
+            .select('id, username') // 只查询需要的字段，不返回密码（密码验证在后端处理）
             .eq('username', username)
-            .eq('password', password)
+            .eq('password', password) // 注意：实际项目中应该用密码哈希验证，而不是明文比对
             .single();
 
         if (error || !user) {
@@ -54,25 +54,18 @@ module.exports = async (req, res) => {
         // 计算cookie有效期（秒）
         let cookieExpiry;
         if (rememberMe) {
-            // 记住密码的情况
-            cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
+            cookieExpiry = duration * 24 * 60 * 60; // 天→秒
         } else {
-            // 不记住密码的情况，1小时有效期
-            cookieExpiry = 3600;
+            cookieExpiry = 3600; // 1小时
         }
 
         // 设置Cookie（敏感信息用httpOnly）
         res.setHeader('Set-Cookie', [
-            // 用户ID - 敏感信息，设置httpOnly
             `mcode_userid=${user.id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${cookieExpiry}; Path=/`,
-            // 用户名 - 非敏感信息，不设置httpOnly以便前端读取
             `mcode_username=${encodeURIComponent(user.username)}; Secure; SameSite=Strict; Max-Age=${cookieExpiry}; Path=/`
         ]);
 
-        // 返回成功信息
-        return res.status(200).json({
-            message: '登录成功'
-        });
+        return res.status(200).json({ message: '登录成功' });
     } catch (err) {
         console.error('登录处理错误:', err);
         return res.status(500).json({ message: '服务器内部错误' });
