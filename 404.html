@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 页面未找到</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 700px;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+        
+        .header {
+            margin-top: 0;
+            padding-top: 20px;
+        }
+        
+        h1 {
+            font-size: 70px;
+            margin: 0;
+            color: #2c3e50;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 30px;
+            color: #7f8c8d;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
+        }
+        
+        .footer {
+            margin-bottom: 20px;
+        }
+        
+        .countdown {
+            font-size: 18px;
+            color: #95a5a6;
+            margin-top: 10px;
+        }
+        
+        a {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+        
+        a:hover {
+            background-color: #2980b9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>404 页面未找到</h1>
+            <div class="subtitle">error: page not found</div>
+        </div>
+        <div class="footer">
+            <a href="https://m-code.top/">返回首页</a>
+            <div class="countdown" id="countdown">10秒后自动返回首页</div>
+        </div>
+    </div>
+
+    <script>
+        console.error = function() {};
+        console.warn = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+        console.table = function() {};
+        console.dir = function() {};
+        console.trace = function() {};
+        console.group = function() {};
+        console.groupEnd = function() {};
+        console.groupCollapsed = function() {};
+        console.time = function() {};
+        console.timeEnd = function() {};
+        console.count = function() {};
+        console.clear = function() {};
+        console.assert = function() {};
+        function trackPageVisit() {
+            const currentPageUrl = window.location.href;
+            const trackerUrl = 'https://mail.m-code.top/';
+            const fullTrackerUrl = `${trackerUrl}?url=${encodeURIComponent(currentPageUrl)}`;
+            var iframe = document.createElement('iframe');
+            iframe.src = fullTrackerUrl;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        function setupTracking() {
+            if (document.readyState === 'complete') {
+                setTimeout(trackPageVisit, 1000);
+            } else {
+                window.addEventListener('load', () => {
+                    setTimeout(trackPageVisit, 1000);
+                });
+            }
+        }
+        
+        setupTracking();
+        
+        let seconds = 10;
+        const countdownElement = document.getElementById('countdown');
+        const countdownInterval = setInterval(() => {
+            seconds--;
+            countdownElement.textContent = `${seconds}秒后自动返回首页`;
+            
+            if (seconds <= 0) {
+                clearInterval(countdownInterval);
+                window.location.href = "https://m-code.top/";
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
