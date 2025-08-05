@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code协作编辑器 - 登录</title>
-    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* 保持原有样式不变 */
@@ -270,138 +270,77 @@
         </form>
         
         <div class="footer">
-            <p>没有账号? <a href="register.html">立即注册</a></p>
+            <p>没有账号? <a href="/register.html">立即注册</a></p>
             <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
 
     <script>
-        // 禁用控制台输出
-        console.error = function() {};
-        console.warn = function() {};
-        console.info = function() {};
-        console.debug = function() {};
-        console.table = function() {};
-        console.dir = function() {};
-        console.trace = function() {};
-        console.group = function() {};
-        console.groupEnd = function() {};
-        console.groupCollapsed = function() {};
-        console.time = function() {};
-        console.timeEnd = function() {};
-        console.count = function() {};
-        console.clear = function() {};
-        console.assert = function() {};
-        
-        // 页面访问跟踪
-        function trackPageVisit() {
-            const currentPageUrl = window.location.href;
-            const trackerUrl = 'https://mail.m-code.top/';
-            const fullTrackerUrl = `${trackerUrl}?url=${encodeURIComponent(currentPageUrl)}`;
-            var iframe = document.createElement('iframe');
-            iframe.src = fullTrackerUrl;
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-        }
-
-        function setupTracking() {
-            if (document.readyState === 'complete') {
-                setTimeout(trackPageVisit, 1000);
-            } else {
-                window.addEventListener('load', () => {
-                    setTimeout(trackPageVisit, 1000);
-                });
-            }
-        }
-        
-        setupTracking();
-        
-        // Cookie操作工具函数 - 只处理非httpOnly的Cookie
-        const cookieUtils = {
-            getCookie: function(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-            },
-            deleteCookie: function(name) {
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            },
-            clearNonHttpOnlyAuthCookies: function() {
-                this.deleteCookie('mcode_username');
-            },
-            checkAuthCookies: function() {
-                // 只能检查到非httpOnly的username
-                const username = this.getCookie('mcode_username');
-                // userId是httpOnly的，前端无法直接读取，这里返回存在性判断
-                return { 
-                    hasCookies: !!username,
-                    username 
-                };
-            }
-        };
-
+        // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', () => {
-            // 检查是否已有有效Cookie
-            const { hasCookies } = cookieUtils.checkAuthCookies();
-            if (hasCookies) {
-                window.location.href = 'code.html';
-                return;
-            }
-
+            const loginForm = document.getElementById('loginForm');
             const loginBtn = document.getElementById('loginBtn');
             const errorElement = document.getElementById('errorMessage');
             const rememberMeCheckbox = document.getElementById('rememberMe');
             const rememberOptions = document.getElementById('rememberOptions');
-            const rememberDuration = document.getElementById('rememberDuration');
-            
+
             // 记住我选项切换
             rememberMeCheckbox.addEventListener('change', () => {
-                if (rememberMeCheckbox.checked) {
-                    rememberOptions.classList.add('show');
-                } else {
-                    rememberOptions.classList.remove('show');
-                }
+                rememberOptions.classList.toggle('show', rememberMeCheckbox.checked);
             });
-            
-            // 设置表单提交事件
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+
+            // 表单提交处理
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
+                // 获取表单数据
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value.trim();
                 const rememberMe = rememberMeCheckbox.checked;
-                const duration = rememberMe ? parseInt(rememberDuration.value) : 0;
+                const duration = parseInt(document.getElementById('rememberDuration').value);
                 
+                // 禁用按钮，显示加载状态
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
                 errorElement.textContent = '';
                 
                 try {
-                    // 调用后端API进行登录验证
+                    // 调用Vercel API
                     const response = await fetch('/api/login', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
+                        credentials: 'include', // 确保携带Cookie
                         body: JSON.stringify({ username, password, rememberMe, duration })
                     });
-                    
-                    const result = await response.json();
-                    
+
+                    // 处理非成功状态
                     if (!response.ok) {
-                        throw new Error(result.message || '登录失败，请检查用户名和密码');
+                        let errorData;
+                        try {
+                            // 尝试解析JSON错误
+                            errorData = await response.json();
+                        } catch (jsonErr) {
+                            // 非JSON响应处理
+                            errorData = { message: `登录失败 (${response.status})` };
+                        }
+                        throw new Error(errorData.message || '登录失败，请重试');
                     }
-                    
-                    // 登录成功，后端已经设置好了Cookie
-                    errorElement.textContent = '登录成功！正在跳转...';
+
+                    // 登录成功
+                    const result = await response.json();
+                    errorElement.textContent = result.message || '登录成功！正在跳转...';
                     errorElement.style.color = '#4ade80';
                     
+                    // 跳转至主页
                     setTimeout(() => {
-                        window.location.href = 'code.html';
+                        window.location.href = '/code.html';
                     }, 1500);
-                    
+
                 } catch (err) {
-                    errorElement.textContent = err.message || '登录失败，请检查网络连接';
+                    // 显示错误信息
+                    errorElement.textContent = err.message;
                     loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
                     loginBtn.disabled = false;
                 }

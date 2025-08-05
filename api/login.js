@@ -1,17 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// 从环境变量获取Supabase配置（改用anon/public密钥）
+// 从Vercel环境变量获取配置
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY; // 现在用anon/public密钥
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
+// 验证环境变量
 if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('请配置Supabase环境变量（URL和ANON_KEY）');
+    throw new Error(JSON.stringify({ 
+        message: 'Supabase环境变量未配置，请检查SUPABASE_URL和SUPABASE_ANON_KEY' 
+    }));
 }
 
-// 初始化Supabase客户端（使用anon/public密钥）
+// 初始化Supabase客户端
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// 解析Cookie的工具函数
+// Cookie解析工具
 function parseCookies(cookieHeader) {
     const cookies = {};
     if (!cookieHeader) return cookies;
@@ -25,49 +28,71 @@ function parseCookies(cookieHeader) {
     return cookies;
 }
 
+// Vercel Serverless Function入口
 module.exports = async (req, res) => {
+    // 强制设置JSON响应类型
+    res.setHeader('Content-Type', 'application/json');
+    
+    // 允许跨域请求（根据实际域名调整）
+    res.setHeader('Access-Control-Allow-Origin', process.env.NEXT_PUBLIC_APP_URL || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // 处理预检请求
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     // 只允许POST方法
     if (req.method !== 'POST') {
         return res.status(405).json({ message: '只允许POST方法' });
     }
 
-    const { username, password, rememberMe = false, duration = 7 } = req.body;
-
-    // 验证输入
-    if (!username || !password) {
-        return res.status(400).json({ message: '用户名和密码不能为空' });
-    }
-
     try {
-        // 查询用户（现在使用anon密钥，依赖RLS策略限制权限）
+        // 解析请求体（Vercel会自动解析JSON）
+        const { username, password, rememberMe = false, duration = 7 } = req.body || {};
+
+        // 验证输入
+        if (!username || !password) {
+            return res.status(400).json({ message: '用户名和密码不能为空' });
+        }
+
+        // 查询用户（使用anon密钥，依赖RLS策略）
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, username') // 只查询需要的字段，不返回密码（密码验证在后端处理）
+            .select('id, username')
             .eq('username', username)
-            .eq('password', password) // 注意：实际项目中应该用密码哈希验证，而不是明文比对
+            .eq('password', password)
             .single();
 
         if (error || !user) {
             return res.status(401).json({ message: '用户名或密码错误' });
         }
 
-        // 计算cookie有效期（秒）
-        let cookieExpiry;
-        if (rememberMe) {
-            cookieExpiry = duration * 24 * 60 * 60; // 天→秒
-        } else {
-            cookieExpiry = 3600; // 1小时
-        }
+        // 计算Cookie有效期
+        const cookieExpiry = rememberMe 
+            ? duration * 24 * 60 * 60  // 记住密码：天→秒
+            : 3600;                   // 不记住：1小时
 
-        // 设置Cookie（敏感信息用httpOnly）
+        // 设置安全Cookie
         res.setHeader('Set-Cookie', [
             `mcode_userid=${user.id}; HttpOnly; Secure; SameSite=Strict; Max-Age=${cookieExpiry}; Path=/`,
             `mcode_username=${encodeURIComponent(user.username)}; Secure; SameSite=Strict; Max-Age=${cookieExpiry}; Path=/`
         ]);
 
-        return res.status(200).json({ message: '登录成功' });
+        // 返回成功响应
+        return res.status(200).json({ 
+            message: '登录成功',
+            username: user.username 
+        });
+
     } catch (err) {
         console.error('登录处理错误:', err);
-        return res.status(500).json({ message: '服务器内部错误' });
+        // 生产环境隐藏详细错误
+        return res.status(500).json({ 
+            message: '服务器内部错误',
+            ...(process.env.NODE_ENV === 'development' && { detail: err.message })
+        });
     }
 };
