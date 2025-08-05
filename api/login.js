@@ -2,14 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // 从Vercel环境变量获取配置
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-
-// 验证环境变量
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(JSON.stringify({ 
-        message: 'Supabase环境变量未配置，请检查SUPABASE_URL和SUPABASE_ANON_KEY' 
-    }));
-}
+const supabaseAnonKey = process.env.SUPABASE_KEY;
 
 // 初始化Supabase客户端
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
