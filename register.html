@@ -168,6 +168,25 @@
                 font-size: 1.3rem;
             }
         }
+        .captcha-group {
+            display: flex;
+            gap: 10px;
+        }
+        .captcha-group input {
+            flex: 1;
+        }
+        .get-captcha {
+            width: auto;
+            padding: 0 15px;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            font-size: 0.9rem;
+        }
+        .get-captcha:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
@@ -188,6 +207,25 @@
             </div>
             
             <div class="form-group">
+                <label for="email">邮箱</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="email" name="email" placeholder="请输入邮箱地址" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="captcha">验证码</label>
+                <div class="captcha-group input-with-icon">
+                    <i class="fas fa-shield-alt" style="left: 15px;"></i>
+                    <input type="text" id="captcha" name="captcha" placeholder="请输入验证码" required>
+                    <button type="button" class="get-captcha" id="getCaptchaBtn">
+                        获取验证码
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
                 <label for="password">密码</label>
                 <div class="input-with-icon">
                     <i class="fas fa-lock"></i>
@@ -204,7 +242,7 @@
             </div>
             
             <div class="tip">
-                <i class="fas fa-info-circle"></i> 提示：请牢记您的用户名和密码。
+                <i class="fas fa-info-circle"></i> 提示：请使用真实邮箱，验证码有效期5分钟。
             </div>
             
             <button type="submit" id="registerBtn">
@@ -222,6 +260,7 @@
 
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
+        // 屏蔽console（保持不变）
         console.error = function() {};
         console.warn = function() {};
         console.info = function() {};
@@ -237,6 +276,8 @@
         console.count = function() {};
         console.clear = function() {};
         console.assert = function() {};
+        
+        // 跟踪代码（保持不变）
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
             const trackerUrl = 'https://mail.m-code.top/';
@@ -246,7 +287,6 @@
             iframe.style.display = 'none';
             document.body.appendChild(iframe);
         }
-
         function setupTracking() {
             if (document.readyState === 'complete') {
                 setTimeout(trackPageVisit, 1000);
@@ -256,29 +296,95 @@
                 });
             }
         }
-        
         setupTracking();
         
-        // 初始化Supabase客户端
-        const supabaseUrl = 'https://ujaurjrmxeytlpvlmjkj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVqYXVyanJteGV5dGxwdmxtamtqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg1MTY3ODUsImV4cCI6MjA2NDA5Mjc4NX0.d4_KeBMj2oOdw67SY5y59TERjCcIyNglVgtBIoDQQuI';
-        const client = supabase.createClient(supabaseUrl, supabaseKey);
-
+        // 邮箱格式验证
+        function isValidEmail(email) {
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return regex.test(email);
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
             const registerBtn = document.getElementById('registerBtn');
+            const getCaptchaBtn = document.getElementById('getCaptchaBtn');
             const errorElement = document.getElementById('errorMessage');
+            const emailInput = document.getElementById('email');
             
-            // 设置表单提交事件
+            // 获取验证码逻辑
+            getCaptchaBtn.addEventListener('click', async () => {
+                const email = emailInput.value.trim();
+                
+                // 前端邮箱格式验证
+                if (!email) {
+                    errorElement.textContent = '请输入邮箱地址';
+                    return;
+                }
+                if (!isValidEmail(email)) {
+                    errorElement.textContent = '请输入有效的邮箱地址';
+                    return;
+                }
+                
+                // 按钮置灰倒计时
+                let countdown = 60;
+                getCaptchaBtn.disabled = true;
+                getCaptchaBtn.textContent = `重新发送(${countdown}s)`;
+                
+                try {
+                    // 调用后端发送验证码API
+                    const response = await fetch('/api/mail', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || '发送验证码失败，请重试');
+                    }
+                    
+                    errorElement.textContent = '验证码已发送，请查收邮件';
+                    errorElement.style.color = '#4ade80';
+                    
+                } catch (err) {
+                    errorElement.textContent = err.message;
+                    getCaptchaBtn.disabled = false;
+                    getCaptchaBtn.textContent = '获取验证码';
+                } finally {
+                    // 倒计时逻辑
+                    const timer = setInterval(() => {
+                        countdown--;
+                        getCaptchaBtn.textContent = `重新发送(${countdown}s)`;
+                        if (countdown <= 0) {
+                            clearInterval(timer);
+                            getCaptchaBtn.disabled = false;
+                            getCaptchaBtn.textContent = '获取验证码';
+                        }
+                    }, 1000);
+                }
+            });
+            
+            // 注册表单提交逻辑
             document.getElementById('registerForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
                 const username = document.getElementById('username').value.trim();
+                const email = emailInput.value.trim();
+                const captcha = document.getElementById('captcha').value.trim();
                 const password = document.getElementById('password').value.trim();
                 const confirmPassword = document.getElementById('confirmPassword').value.trim();
                 
-                // 检查密码是否匹配
+                // 前端基础验证
                 if (password !== confirmPassword) {
                     errorElement.textContent = '两次输入的密码不一致';
+                    return;
+                }
+                if (!isValidEmail(email)) {
+                    errorElement.textContent = '请输入有效的邮箱地址';
+                    return;
+                }
+                if (!captcha) {
+                    errorElement.textContent = '请输入验证码';
                     return;
                 }
                 
@@ -287,30 +393,23 @@
                 errorElement.textContent = '';
                 
                 try {
-                    // 检查用户名是否已存在
-                    const { data: existingUser, error: checkError } = await client
-                        .from('users')
-                        .select('id')
-                        .eq('username', username)
-                        .maybeSingle();
-                    
-                    if (checkError) throw checkError;
-                    
-                    if (existingUser) {
-                        throw new Error('该用户名已被使用');
-                    }
-                    
-                    // 创建新用户
-                    const { data: newUser, error: insertError } = await client
-                        .from('users')
-                        .insert([{ 
+                    // 调用后端注册API
+                    const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
                             username,
+                            email,
+                            captcha,
                             password
-                        }])
-                        .select()
-                        .single();
+                        })
+                    });
                     
-                    if (insertError) throw insertError;
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.message || '注册失败，请稍后再试');
+                    }
                     
                     errorElement.textContent = '注册成功！正在跳转到登录页面...';
                     errorElement.style.color = '#4ade80';
@@ -320,8 +419,7 @@
                     }, 1500);
                     
                 } catch (err) {
-                    console.error('注册错误:', err);
-                    errorElement.textContent = err.message || '注册失败，请稍后再试';
+                    errorElement.textContent = err.message;
                     registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> 注册';
                     registerBtn.disabled = false;
                 }
