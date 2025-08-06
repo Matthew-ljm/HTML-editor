@@ -38,15 +38,27 @@ module.exports = async (req, res) => {
         }
         
         // 2. 检查用户名是否已存在
-        const { data: existingUser, error: userCheckError } = await supabase
+        const { data: existingUserByUsername, error: userCheckError } = await supabase
             .from('users')
             .select('id')
             .eq('username', username)
             .maybeSingle();
         
         if (userCheckError) throw userCheckError;
-        if (existingUser) {
+        if (existingUserByUsername) {
             return res.status(400).json({ message: '该用户名已被使用' });
+        }
+
+        // 3. 检查邮箱是否已注册
+        const { data: existingUserByEmail, error: emailCheckError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle();
+        
+        if (emailCheckError) throw emailCheckError;
+        if (existingUserByEmail) {
+            return res.status(400).json({ message: '该邮箱已被注册，请更换' });
         }
         
         // 4. 创建新用户
@@ -55,7 +67,7 @@ module.exports = async (req, res) => {
             .insert([{
                 username,
                 email,
-                password: password // 存储加密后的密码
+                password: password // 注意：实际生产环境需加密存储密码
             }])
             .select()
             .single();
