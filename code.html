@@ -781,13 +781,13 @@
                     'Ctrl-Space': 'autocomplete',
                     'Alt-Space': 'autocomplete',
                     'Ctrl-Enter': 'autocomplete',
-                    'Tab': function(cm) {
-                        if (cm.somethingSelected()) {
-                            cm.indentSelection('add');
-                        } else {
-                            cm.execCommand('indentMore');
-                        }
-                    }
+                    // 'Tab': function(cm) {
+                    //     if (cm.somethingSelected()) {
+                    //         cm.indentSelection('add');
+                    //     } else {
+                    //         cm.execCommand('indentMore');
+                    //     }
+                    // }
                 },
                 hintOptions: {
                     completeSingle: false,
