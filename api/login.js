@@ -1,5 +1,6 @@
 // api/login.js
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs'); // 引入bcrypt用于密码哈希验证
 
 // 从Vercel环境变量获取密钥（关键：避免硬编码）
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -25,19 +26,24 @@ module.exports = async (req, res) => {
             return res.status(400).json({ message: '请输入用户名和密码' });
         }
         
-        // 查询用户（后端安全验证）
+        // 查询用户（获取存储的哈希密码）
         const { data: user, error } = await supabase
             .from('users')
-            .select('id, username')  // 只查询必要字段，不返回密码
+            .select('id, username, password')  // 需要获取哈希密码用于验证
             .eq('username', username)
-            .eq('password', password)
             .single();
         
         if (error || !user) {
             return res.status(401).json({ message: '用户名或密码错误' });
         }
         
-        // 登录成功：返回用户信息
+        // 验证密码（明文密码与哈希密码比对）
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: '用户名或密码错误' });
+        }
+        
+        // 登录成功：返回用户信息（不包含密码）
         res.status(200).json({
             success: true,
             username: user.username,
