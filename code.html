@@ -625,12 +625,12 @@
                 this.setCookie('mcode_userid', userId, days);
             },
             clearAuthCookies: function() {
-                this.deleteCookie('username');
-                this.deleteCookie('user_id');
+                this.deleteCookie('mcode_username');
+                this.deleteCookie('mcode_userid');
             },
             checkAuthCookies: function() {
-                const username = this.getCookie('username');
-                const userId = this.getCookie('user_id');
+                const username = this.getCookie('mcode_username');
+                const userId = this.getCookie('mcode_userid');
                 return { username, userId };
             }
         };
