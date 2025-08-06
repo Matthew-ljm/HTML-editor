@@ -393,16 +393,38 @@
                 cursor: pointer;
             }
         }
+
+        .loading-indicator {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: white;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 9999; /* 确保在最上层 */
+        }
+
+        .hidden {
+        display: none;
+        }
     </style>
 </head>
 <body>
+    <div id="loadingIndicator" class="loading-indicator hidden">
+    <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载配置...
+    </div>
     <header>
         <div class="logo">
             <i class="fas fa-code"></i>
             <span>M-Code</span>
         </div>
         <div class="user-info">
-            <div class="avatar" id="userAvatar">U</div>
+            <div class="avatar" id="userAvatar">M</div> <!-- 用户头像，默认为首字母 -->
             <button class="logout-btn" id="logoutBtn">
                 <i class="fas fa-sign-out-alt"></i> 退出
             </button>
@@ -671,6 +693,8 @@
             // 开始新的请求
             isConfigLoading = true;
             configLoadPromise = (async () => {
+                const loading = document.getElementById('loadingIndicator');
+                loading.classList.remove('hidden');
                 try {
                     const response = await fetch('/api/supabase-config', {
                         method: 'GET',
@@ -705,6 +729,7 @@
                     return false;
                 } finally {
                     isConfigLoading = false;
+                    loading.classList.add('hidden');
                 }
             })();
 
@@ -744,7 +769,7 @@
             editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
                 lineNumbers: true,
                 theme: 'dracula',
-                lineWrapping: true,
+                lineWrapping: false,
                 indentUnit: 4,
                 tabSize: 4,
                 autoCloseBrackets: true,
