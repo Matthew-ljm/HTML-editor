@@ -1,6 +1,5 @@
 // api/register.js
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcrypt'); // 需安装：npm install bcrypt
 
 // 从环境变量获取配置
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -50,16 +49,13 @@ module.exports = async (req, res) => {
             return res.status(400).json({ message: '该用户名已被使用' });
         }
         
-        // 3. 密码加密（10轮哈希）
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
         // 4. 创建新用户
         const { data: newUser, error: insertError } = await supabase
             .from('users')
             .insert([{
                 username,
                 email,
-                password: hashedPassword // 存储加密后的密码
+                password: password // 存储加密后的密码
             }])
             .select()
             .single();
