@@ -621,8 +621,8 @@
                 document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             },
             setAuthCookies: function(username, userId, days = 7) {
-                this.setCookie('username', username, days);
-                this.setCookie('user_id', userId, days);
+                this.setCookie('mcode_username', username, days);
+                this.setCookie('mcode_userid', userId, days);
             },
             clearAuthCookies: function() {
                 this.deleteCookie('username');
