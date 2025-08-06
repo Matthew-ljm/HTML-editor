@@ -871,6 +871,9 @@
         function renderProjectList() {
             const projectList = document.getElementById('projectList');
             projectList.innerHTML = '';
+            if (!listContainer) {
+                console.error('renderProjectList 错误：未找到 projectList 元素');
+                return; // 避免后续错误
             
             projects.forEach(project => {
                 const li = document.createElement('li');
@@ -1058,6 +1061,10 @@
 
         // 渲染协作者列表
         function renderCollaborators() {
+            if (!container) {
+                console.error('renderCollaborators 错误：未找到 collaboratorsList 元素');
+                return; // 避免后续错误
+            }
             const collaboratorsList = document.getElementById('collaboratorsList');
             collaboratorsList.innerHTML = '';
             
