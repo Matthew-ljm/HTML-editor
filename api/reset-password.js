@@ -18,33 +18,36 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { email, newPassword } = req.body;
+        const { username, email, newPassword } = req.body; // 接收username
         
         // 基础验证
-        if (!email || !newPassword) {
-            return res.status(400).json({ message: '请输入邮箱和新密码' });
+        if (!username || !email || !newPassword) {
+            return res.status(400).json({ message: '请输入用户名、邮箱和新密码' });
         }
-        
         if (newPassword.length < 6) {
             return res.status(400).json({ message: '密码长度不能少于6位' });
         }
         
-        // 检查用户是否存在
+        // 1. 检查用户是否存在（按用户名查询）
         const { data: user, error: userError } = await supabase
             .from('users')
-            .select('id')
-            .eq('email', email)
+            .select('id, email')
+            .eq('username', username)
             .single();
         
         if (userError || !user) {
             return res.status(400).json({ message: '用户不存在' });
         }
         
-        // 加密密码
+        // 2. 再次验证邮箱匹配（防止篡改）
+        if (user.email !== email) {
+            return res.status(400).json({ message: '邮箱与用户名不匹配' });
+        }
+        
+        // 3. 加密并更新密码
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
         
-        // 更新密码
         const { error: updateError } = await supabase
             .from('users')
             .update({ password: hashedPassword })

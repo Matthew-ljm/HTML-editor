@@ -38,34 +38,44 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { email } = req.body;
+        const { username, email } = req.body; // 接收username和email
         
-        // 验证邮箱格式
+        // 基础验证
+        if (!username) {
+            return res.status(400).json({ message: '请输入用户名' });
+        }
+        if (!email) {
+            return res.status(400).json({ message: '请输入邮箱地址' });
+        }
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             return res.status(400).json({ message: '邮箱格式无效' });
         }
         
-        // 检查邮箱是否已注册
-        const { data: existingUser } = await supabase
+        // 1. 先检查用户名是否存在
+        const { data: user, error: userError } = await supabase
             .from('users')
-            .select('id')
-            .eq('email', email)
+            .select('email') // 查询该用户绑定的邮箱
+            .eq('username', username) // 按用户名查询
             .single();
-            
-        if (!existingUser) {
-            return res.status(400).json({ message: '该邮箱未注册' });
+        
+        if (userError || !user) {
+            return res.status(400).json({ message: '用户名不存在' });
         }
         
-        // 生成验证码
-        const captcha = generateCaptcha();
-        // 有效期5分钟
-        const expiresAt = new Date(Date.now() + 300000).toISOString();
+        // 2. 验证输入的邮箱是否与用户绑定的邮箱一致
+        if (user.email !== email) {
+            return res.status(400).json({ message: '邮箱与用户名不匹配' });
+        }
         
-        // 存储验证码到数据库
+        // 3. 生成验证码并存储
+        const captcha = generateCaptcha();
+        const expiresAt = new Date(Date.now() + 300000).toISOString(); // 有效期5分钟
+        
         const { error: insertError } = await supabase
             .from('captchas')
             .insert([{
+                username, // 新增：存储用户名（用于后续验证）
                 email,
                 captcha,
                 expires_at: expiresAt
@@ -73,7 +83,7 @@ module.exports = async (req, res) => {
         
         if (insertError) throw insertError;
         
-        // 发送邮件
+        // 4. 发送邮件
         await transporter.sendMail({
             from: `"M-Code协作编辑器" <${smtpUser}>`,
             to: email,

@@ -17,17 +17,18 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { email, captcha } = req.body;
+        const { username, email, captcha } = req.body; // 接收username
         
         // 基础验证
-        if (!email || !captcha) {
-            return res.status(400).json({ message: '请输入邮箱和验证码' });
+        if (!username || !email || !captcha) {
+            return res.status(400).json({ message: '请输入用户名、邮箱和验证码' });
         }
         
-        // 验证验证码
+        // 验证验证码：需匹配用户名、邮箱、验证码且未过期
         const { data: validCaptcha, error: captchaError } = await supabase
             .from('captchas')
             .select('*')
+            .eq('username', username) // 新增：匹配用户名
             .eq('email', email)
             .eq('captcha', captcha)
             .gt('expires_at', new Date().toISOString()) // 未过期
