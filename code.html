@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     <style>
-        /* 保持原有CSS样式不变 */
         * {
             margin: 0;
             padding: 0;
@@ -25,7 +24,487 @@
             overflow: hidden;
         }
         
-        /* 省略中间样式... */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem 1.5rem;
+            background-color: #1e293b;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #38bdf8;
+        }
+        
+        .logo i {
+            font-size: 1.5rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .avatar:hover {
+            background-color: #60a5fa;
+        }
+        
+        .logout-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: background-color 0.2s;
+        }
+        
+        .logout-btn:hover {
+            background-color: #f87171;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 240px;
+            background-color: #1e293b;
+            border-right: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .sidebar-section {
+            padding: 1rem;
+            border-bottom: 1px solid #334155;
+        }
+        
+        .sidebar-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-title button {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .sidebar-title button:hover {
+            color: #e2e8f0;
+        }
+        
+        .project-list, .file-list {
+            list-style: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .project-list::-webkit-scrollbar,
+        .file-list::-webkit-scrollbar {
+            width: 5px;
+        }
+        
+        .project-list::-webkit-scrollbar-thumb,
+        .file-list::-webkit-scrollbar-thumb {
+            background-color: #334155;
+            border-radius: 5px;
+        }
+        
+        .project-item, .file-item {
+            padding: 0.5rem 0.7rem;
+            border-radius: 0.3rem;
+            margin-bottom: 0.3rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .project-item:hover, .file-item:hover {
+            background-color: #334155;
+        }
+        
+        .project-item.active, .file-item.active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .file-item .file-icon {
+            margin-right: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .file-item .file-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-item .file-actions {
+            display: none;
+        }
+        
+        .file-item:hover .file-actions {
+            display: block;
+        }
+        
+        .file-actions button {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 0.3rem;
+        }
+        
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .editor-toolbar {
+            padding: 0.8rem 1rem;
+            background-color: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-info {
+            font-weight: 500;
+            color: #94a3b8;
+        }
+        
+        .file-info .file-path {
+            color: #e2e8f0;
+        }
+        
+        .editor-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            background-color: #334155;
+            color: #e2e8f0;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: background-color 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: #475569;
+        }
+        
+        .action-btn.run {
+            background-color: #10b981;
+        }
+        
+        .action-btn.run:hover {
+            background-color: #34d399;
+        }
+        
+        .action-btn.save {
+            background-color: #3b82f6;
+        }
+        
+        .action-btn.save:hover {
+            background-color: #60a5fa;
+        }
+        
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #editor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .collaborators {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: -0.5rem;
+        }
+        
+        .collaborator {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: #6366f1;
+            border: 2px solid #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(15, 23, 42, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background-color: #1e293b;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        .modal-close:hover {
+            color: #e2e8f0;
+        }
+        
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid #334155;
+            border-radius: 0.3rem;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-size: 1rem;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-secondary {
+            background-color: #334155;
+            color: #e2e8f0;
+            border: none;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background-color: #60a5fa;
+        }
+        
+        .share-link-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .share-link {
+            flex: 1;
+            padding: 0.7rem;
+            border: 1px solid #334155;
+            border-radius: 0.3rem;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .collaborators-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .collaborator-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem;
+            background-color: #0f172a;
+            border-radius: 0.3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .collaborator-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .collaborator-avatar {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: #6366f1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .remove-collaborator {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        
+        .status-saved {
+            background-color: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+        
+        .status-saving {
+            background-color: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+        
+        .status-error {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .menu-toggle {
+            display: none;
+        }
         
         @media (max-width: 576px) {
             .sidebar {
@@ -49,11 +528,22 @@
                 font-size: 1.2rem;
                 cursor: pointer;
             }
+            
+            .editor-actions {
+                flex-wrap: wrap;
+            }
+            
+            .action-btn span {
+                display: none;
+            }
+            
+            .action-btn {
+                padding: 0.4rem;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- 保持原有HTML结构不变 -->
     <header>
         <div class="logo">
             <i class="fas fa-code"></i>
@@ -69,22 +559,183 @@
     
     <div class="main-container">
         <div class="sidebar" id="sidebar">
-            <!-- 侧边栏内容保持不变 -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    我的项目
+                    <button id="addProjectBtn" title="新建项目">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="project-list" id="projectList">
+                    <!-- 项目列表将通过JS动态生成 -->
+                </ul>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    项目文件
+                    <button id="addFileBtn" title="新建文件">
+                        <i class="fas fa-file-plus"></i>
+                    </button>
+                </div>
+                <ul class="file-list" id="fileList">
+                    <!-- 文件列表将通过JS动态生成 -->
+                </ul>
+            </div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    协作者
+                </div>
+                <div class="collaborators-list" id="collaboratorsList">
+                    <!-- 协作者列表将通过JS动态生成 -->
+                </div>
+                <button class="action-btn" id="shareBtn" style="width: 100%; margin-top: 10px;">
+                    <i class="fas fa-share-alt"></i> 分享项目
+                </button>
+            </div>
         </div>
         
         <div class="editor-container">
-            <!-- 编辑器容器保持不变 -->
+            <div class="editor-toolbar">
+                <div class="file-info">
+                    当前文件: <span class="file-path" id="currentFilePath">未选择文件</span>
+                </div>
+                <div class="editor-actions">
+                    <button class="action-btn run" id="runBtn">
+                        <i class="fas fa-play"></i> <span>运行</span>
+                    </button>
+                    <button class="action-btn save" id="saveBtn">
+                        <i class="fas fa-save"></i> <span>保存</span>
+                    </button>
+                    <button class="action-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i> <span>下载</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="editor-wrapper">
+                <div id="editor"></div>
+                <div class="status-indicator status-saved" id="statusIndicator">
+                    <i class="fas fa-check"></i> 已保存
+                </div>
+                <div class="collaborators" id="activeCollaborators">
+                    <!-- 活跃协作者将通过JS动态生成 -->
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- 各种模态框保持不变 -->
+    <!-- 新建项目模态框 -->
+    <div class="modal-overlay" id="newProjectModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">新建项目</h3>
+                <button class="modal-close" id="closeProjectModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="projectNameInput">项目名称</label>
+                    <input type="text" class="form-control" id="projectNameInput" placeholder="输入项目名称">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="projectDescInput">项目描述（可选）</label>
+                    <textarea class="form-control" id="projectDescInput" rows="3" placeholder="输入项目描述"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelProjectBtn">取消</button>
+                <button class="btn btn-primary" id="confirmProjectBtn">创建</button>
+            </div>
+        </div>
+    </div>
     
+    <!-- 新建文件模态框 -->
+    <div class="modal-overlay" id="newFileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">新建文件</h3>
+                <button class="modal-close" id="closeFileModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="fileNameInput">文件名称</label>
+                    <input type="text" class="form-control" id="fileNameInput" placeholder="例如：main.cpp">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fileLanguageSelect">编程语言</label>
+                    <select class="form-control" id="fileLanguageSelect">
+                        <option value="cpp">C++</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelFileBtn">取消</button>
+                <button class="btn btn-primary" id="confirmFileBtn">创建</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 分享项目模态框 -->
+    <div class="modal-overlay" id="shareProjectModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">分享项目</h3>
+                <button class="modal-close" id="closeShareModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">项目链接</label>
+                    <div class="share-link-container">
+                        <div class="share-link" id="projectShareLink">https://ide.m-code.top/code.html?project=12345</div>
+                        <button class="btn btn-primary" id="copyLinkBtn">复制</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">添加协作者</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" class="form-control" id="collaboratorEmailInput" placeholder="输入邮箱地址">
+                        <button class="btn btn-primary" id="addCollaboratorBtn">添加</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">当前协作者</label>
+                    <div class="collaborators-list" id="currentCollaboratorsList">
+                        <!-- 协作者列表将通过JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeShareBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-    <!-- 其他CodeMirror相关脚本保持不变 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/anyword-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/css-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/html-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/javascript-hint.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
 
     <script>
-        // 禁用控制台输出
+        // 禁用控制台输出以增强安全性
         console.error = function() {};
         console.warn = function() {};
         console.info = function() {};
@@ -101,7 +752,7 @@
         console.clear = function() {};
         console.assert = function() {};
         
-        // 跟踪代码保持不变
+        // 页面访问跟踪
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
             const trackerUrl = 'https://mail.m-code.top/';
@@ -124,35 +775,62 @@
         
         setupTracking();
         
-        // C++ 关键词保持不变
+        // C++ 关键词列表，用于代码提示
         const cppKeywords = [
             "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
-            // 省略其他关键词...
+            "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t",
+            "class", "compl", "concept", "const", "consteval", "constexpr", "const_cast",
+            "continue", "co_await", "co_return", "co_yield", "decltype", "default", "delete",
+            "do", "double", "dynamic_cast", "else", "enum", "explicit", "export", "extern",
+            "false", "float", "for", "friend", "goto", "if", "inline", "int", "long", "mutable",
+            "namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
+            "private", "protected", "public", "register", "reinterpret_cast", "requires", "return",
+            "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch",
+            "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
+            "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
+            "include", "define", "undef", "ifdef", "ifndef", "endif", "line", "error", "pragma"
         ];
 
-        // Cookie操作工具函数保持不变
+        // Cookie操作工具函数
         const cookieUtils = {
             setCookie: function(name, value, days) {
-                // 实现保持不变
+                let expires = "";
+                if (days) {
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                document.cookie = name + "=" + (value || "")  + expires + "; path=/";
             },
             getCookie: function(name) {
-                // 实现保持不变
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i=0;i < ca.length;i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1,c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length,c.length);
+                }
+                return null;
             },
             deleteCookie: function(name) {
-                // 实现保持不变
+                document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             },
-            setAuthCookies: function(username, userId, days) {
-                // 实现保持不变
+            setAuthCookies: function(username, userId, days = 7) {
+                this.setCookie('username', username, days);
+                this.setCookie('user_id', userId, days);
             },
             clearAuthCookies: function() {
-                // 实现保持不变
+                this.deleteCookie('username');
+                this.deleteCookie('user_id');
             },
             checkAuthCookies: function() {
-                // 实现保持不变
+                const username = this.getCookie('username');
+                const userId = this.getCookie('user_id');
+                return { username, userId };
             }
         };
 
-        // 全局变量 - 修改Supabase相关变量定义
+        // 全局变量
         let currentUser = null;
         let currentProject = null;
         let currentFile = null;
@@ -257,63 +935,459 @@
             });
         });
 
-        // 以下函数实现保持不变（initEditor, cppHint, setEditorMode等）
+        // 初始化代码编辑器
         function initEditor() {
-            // 实现保持不变
+            editor = CodeMirror(document.getElementById('editor'), {
+                lineNumbers: true,
+                mode: 'text/x-c++src',
+                theme: 'dracula',
+                indentUnit: 4,
+                indentWithTabs: true,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                styleActiveLine: true,
+                lineWrapping: false,
+                extraKeys: {
+                    "Ctrl-Space": "autocomplete",
+                    "Ctrl-S": function(instance) {
+                        saveCurrentFile();
+                    }
+                }
+            });
+
+            // 监听编辑器内容变化
+            editor.on('change', () => {
+                if (currentFile) {
+                    currentFile.hasChanges = true;
+                    updateStatusIndicator('saving');
+                }
+            });
         }
 
+        // C++代码提示
         function cppHint(cm, options) {
-            // 实现保持不变
+            const cursor = cm.getCursor();
+            const line = cm.getLine(cursor.line);
+            const start = cursor.ch;
+            let end = start;
+            
+            // 找到当前单词的起始位置
+            while (end > 0 && /\w/.test(line.charAt(end - 1))) {
+                --end;
+            }
+            
+            const word = line.slice(end, start);
+            const list = cppKeywords.filter(keyword => 
+                keyword.startsWith(word) && keyword !== word
+            );
+            
+            return {
+                list: list,
+                from: CodeMirror.Pos(cursor.line, end),
+                to: CodeMirror.Pos(cursor.line, start)
+            };
         }
 
+        // 设置编辑器模式（编程语言）
         function setEditorMode(language) {
-            // 实现保持不变
+            switch(language) {
+                case 'cpp':
+                    editor.setOption('mode', 'text/x-c++src');
+                    CodeMirror.registerHelper("hint", "cpp", cppHint);
+                    break;
+                case 'javascript':
+                    editor.setOption('mode', 'javascript');
+                    break;
+                case 'python':
+                    editor.setOption('mode', 'python');
+                    break;
+                case 'java':
+                    editor.setOption('mode', 'text/x-java');
+                    break;
+                case 'html':
+                    editor.setOption('mode', 'htmlmixed');
+                    break;
+                case 'css':
+                    editor.setOption('mode', 'css');
+                    break;
+                default:
+                    editor.setOption('mode', 'text/plain');
+            }
         }
 
+        // 加载用户项目
         async function loadUserProjects() {
-            // 实现保持不变
+            try {
+                // 获取用户创建的项目
+                const { data: userProjects, error: userProjectsError } = await client
+                    .from('projects')
+                    .select('*')
+                    .eq('owner_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+
+                if (userProjectsError) throw userProjectsError;
+
+                // 获取用户协作的项目
+                const { data: collaborations, error: collaborationsError } = await client
+                    .from('collaborations')
+                    .select('project_id')
+                    .eq('user_id', currentUser.id);
+
+                if (collaborationsError) throw collaborationsError;
+
+                // 获取协作项目的详细信息
+                let collaborativeProjects = [];
+                if (collaborations && collaborations.length > 0) {
+                    const projectIds = collaborations.map(c => c.project_id);
+                    const { data: projectsData, error: projectsError } = await client
+                        .from('projects')
+                        .select('*')
+                        .in('id', projectIds)
+                        .order('created_at', { ascending: false });
+
+                    if (projectsError) throw projectsError;
+                    collaborativeProjects = projectsData || [];
+                }
+
+                // 合并项目并去重
+                projects = [...userProjects || [], ...collaborativeProjects];
+                const uniqueProjects = [];
+                const seenIds = new Set();
+                
+                for (const project of projects) {
+                    if (!seenIds.has(project.id)) {
+                        seenIds.add(project.id);
+                        uniqueProjects.push(project);
+                    }
+                }
+                
+                projects = uniqueProjects;
+
+                renderProjectList();
+
+                // 检查URL中是否有项目ID参数，如果有则自动加载
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectId = urlParams.get('project');
+                if (projectId && projects.some(p => p.id === projectId)) {
+                    await selectProject(projectId);
+                } else if (projects.length > 0) {
+                    // 否则加载第一个项目
+                    await selectProject(projects[0].id);
+                }
+            } catch (error) {
+                console.error('加载项目失败:', error);
+                alert('加载项目失败: ' + error.message);
+            }
         }
 
+        // 渲染项目列表
         function renderProjectList() {
-            // 实现保持不变
+            const projectListElement = document.getElementById('projectList');
+            projectListElement.innerHTML = '';
+
+            if (projects.length === 0) {
+                projectListElement.innerHTML = '<li style="padding: 0.5rem; color: #94a3b8; text-align: center;">暂无项目</li>';
+                return;
+            }
+
+            projects.forEach(project => {
+                const li = document.createElement('li');
+                li.className = `project-item ${currentProject && currentProject.id === project.id ? 'active' : ''}`;
+                li.innerHTML = `
+                    <span>${project.name}</span>
+                    <i class="fas fa-chevron-right" style="font-size: 0.8rem; opacity: 0.7;"></i>
+                `;
+                li.addEventListener('click', () => selectProject(project.id));
+                projectListElement.appendChild(li);
+            });
         }
 
+        // 选择项目
         async function selectProject(projectId) {
-            // 实现保持不变
+            try {
+                // 清除之前的定时器
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
+
+                // 查找项目
+                currentProject = projects.find(p => p.id === projectId);
+                if (!currentProject) {
+                    throw new Error('项目不存在');
+                }
+
+                // 更新URL参数
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('project', projectId);
+                window.history.replaceState(null, '', `${window.location.pathname}?${urlParams.toString()}`);
+
+                // 加载项目文件
+                await loadProjectFiles();
+
+                // 加载协作者
+                await loadCollaborators();
+
+                // 更新UI
+                renderProjectList();
+                document.getElementById('projectShareLink').textContent = `${window.location.origin}${window.location.pathname}?project=${projectId}`;
+
+                // 设置定时器
+                setupTimers();
+            } catch (error) {
+                console.error('选择项目失败:', error);
+                alert('选择项目失败: ' + error.message);
+            }
         }
 
+        // 加载项目文件
         async function loadProjectFiles() {
-            // 实现保持不变
+            try {
+                const { data, error } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('project_id', currentProject.id)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                files = data || [];
+                renderFileList();
+
+                // 如果有文件，选择第一个
+                if (files.length > 0 && (!currentFile || currentFile.project_id !== currentProject.id)) {
+                    await selectFile(files[0].id);
+                } else {
+                    // 清空编辑器
+                    editor.setValue('');
+                    currentFile = null;
+                    document.getElementById('currentFilePath').textContent = '未选择文件';
+                }
+            } catch (error) {
+                console.error('加载项目文件失败:', error);
+                alert('加载文件失败: ' + error.message);
+            }
         }
 
+        // 设置定时器（自动保存和检查更新）
         function setupTimers() {
-            // 实现保持不变
+            // 自动保存定时器（每30秒）
+            saveInterval = setInterval(() => {
+                if (currentFile && currentFile.hasChanges) {
+                    saveCurrentFile();
+                }
+            }, 30000);
+
+            // 检查文件更新定时器（每5秒）
+            checkUpdateInterval = setInterval(() => {
+                if (currentFile) {
+                    checkFileUpdates();
+                }
+            }, 5000);
+
+            // 检查文件列表更新（每30秒）
+            checkFileListInterval = setInterval(() => {
+                if (currentProject) {
+                    loadProjectFiles();
+                }
+            }, 30000);
         }
 
+        // 检查文件是否有更新
         async function checkFileUpdates() {
-            // 实现保持不变
+            if (!currentFile || isSyncing) return;
+
+            try {
+                isSyncing = true;
+
+                const { data, error } = await client
+                    .from('files')
+                    .select('content, updated_at, last_updated_by')
+                    .eq('id', currentFile.id)
+                    .single();
+
+                if (error) throw error;
+
+                // 检查是否有更新
+                if (data.updated_at !== currentFile.updated_at) {
+                    // 如果是其他用户更新的，应用更改
+                    if (data.last_updated_by !== currentUser.id) {
+                        applyRemoteChanges(data.content, data.last_updated_by);
+                        currentFile.content = data.content;
+                        currentFile.updated_at = data.updated_at;
+                        currentFile.last_updated_by = data.last_updated_by;
+                    }
+                }
+
+                isSyncing = false;
+            } catch (error) {
+                console.error('检查文件更新失败:', error);
+                isSyncing = false;
+            }
         }
 
+        // 应用远程更改
         function applyRemoteChanges(content, lastUpdatedBy) {
-            // 实现保持不变
+            // 保存当前光标位置
+            const cursor = editor.getCursor();
+            
+            // 应用新内容
+            editor.setValue(content);
+            
+            // 恢复光标位置
+            editor.setCursor(cursor);
+            
+            // 显示通知
+            const statusIndicator = document.getElementById('statusIndicator');
+            statusIndicator.className = 'status-indicator status-saved';
+            statusIndicator.innerHTML = '<i class="fas fa-sync-alt"></i> 已同步远程更改';
+            
+            setTimeout(() => {
+                updateStatusIndicator('saved');
+            }, 3000);
         }
 
-        function updateLastEditorInfo(userId) {
-            // 实现保持不变
+        // 更新最后编辑者信息
+        async function updateLastEditorInfo(userId) {
+            try {
+                const { data, error } = await client
+                    .from('profiles')
+                    .select('username')
+                    .eq('id', userId)
+                    .single();
+
+                if (error) {
+                    console.error('获取用户信息失败:', error);
+                    return '未知用户';
+                }
+
+                return data.username || '未知用户';
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                return '未知用户';
+            }
         }
 
+        // 渲染文件列表
         function renderFileList() {
-            // 实现保持不变
+            const fileListElement = document.getElementById('fileList');
+            fileListElement.innerHTML = '';
+
+            if (files.length === 0) {
+                fileListElement.innerHTML = '<li style="padding: 0.5rem; color: #94a3b8; text-align: center;">暂无文件</li>';
+                return;
+            }
+
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = `file-item ${currentFile && currentFile.id === file.id ? 'active' : ''}`;
+                
+                // 根据文件类型选择图标
+                let fileIcon = 'fas fa-file-code';
+                if (file.name.endsWith('.cpp') || file.name.endsWith('.c')) fileIcon = 'fas fa-file-code';
+                else if (file.name.endsWith('.js')) fileIcon = 'fab fa-js';
+                else if (file.name.endsWith('.py')) fileIcon = 'fab fa-python';
+                else if (file.name.endsWith('.html')) fileIcon = 'fab fa-html5';
+                else if (file.name.endsWith('.css')) fileIcon = 'fab fa-css3-alt';
+                
+                li.innerHTML = `
+                    <div class="file-icon"><i class="${fileIcon}"></i></div>
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-actions">
+                        <button class="delete-file-btn" data-file-id="${file.id}" title="删除文件">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                li.addEventListener('click', (e) => {
+                    // 防止点击删除按钮时触发文件选择
+                    if (!e.target.closest('.delete-file-btn')) {
+                        selectFile(file.id);
+                    }
+                });
+                
+                fileListElement.appendChild(li);
+            });
+
+            // 添加删除文件事件监听
+            document.querySelectorAll('.delete-file-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const fileId = e.currentTarget.getAttribute('data-file-id');
+                    if (confirm('确定要删除这个文件吗？')) {
+                        await deleteFile(fileId);
+                    }
+                });
+            });
         }
 
+        // 选择文件
         async function selectFile(fileId) {
-            // 实现保持不变
+            try {
+                // 保存当前文件的更改
+                if (currentFile && currentFile.hasChanges) {
+                    await saveCurrentFile();
+                }
+
+                // 查找文件
+                currentFile = files.find(f => f.id === fileId);
+                if (!currentFile) {
+                    throw new Error('文件不存在');
+                }
+
+                // 设置编辑器内容
+                editor.setValue(currentFile.content || '');
+                currentFile.hasChanges = false;
+                
+                // 设置编辑器模式
+                setEditorMode(currentFile.language);
+                
+                // 更新UI
+                renderFileList();
+                document.getElementById('currentFilePath').textContent = currentFile.name;
+                updateStatusIndicator('saved');
+                
+                // 记录最后更新时间
+                lastUpdateTime = new Date(currentFile.updated_at).getTime();
+            } catch (error) {
+                console.error('选择文件失败:', error);
+                alert('选择文件失败: ' + error.message);
+            }
         }
 
+        // 删除文件
+        async function deleteFile(fileId) {
+            try {
+                const { error } = await client
+                    .from('files')
+                    .delete()
+                    .eq('id', fileId);
+
+                if (error) throw error;
+
+                // 如果删除的是当前文件，清空编辑器
+                if (currentFile && currentFile.id === fileId) {
+                    editor.setValue('');
+                    currentFile = null;
+                    document.getElementById('currentFilePath').textContent = '未选择文件';
+                }
+
+                // 重新加载文件列表
+                await loadProjectFiles();
+            } catch (error) {
+                console.error('删除文件失败:', error);
+                alert('删除文件失败: ' + error.message);
+            }
+        }
+
+        // 保存当前文件
         async function saveCurrentFile() {
-            if (!currentFile || !currentFile.hasChanges) return;
+            if (!currentFile || !currentFile.hasChanges || isSyncing) return;
             
             try {
+                isSyncing = true;
+                updateStatusIndicator('saving');
+                
                 const content = editor.getValue();
                 const now = new Date();
                 
@@ -332,18 +1406,102 @@
                 currentFile.updated_at = now.toISOString();
                 currentFile.last_updated_by = currentUser.id;
                 currentFile.hasChanges = false;
+                
+                updateStatusIndicator('saved');
+                isSyncing = false;
             } catch (err) {
                 console.error('保存文件错误:', err);
-                alert('保存失败: ' + err.message);
+                updateStatusIndicator('error');
+                isSyncing = false;
             }
         }
 
-        // 其他事件处理函数保持不变
+        // 更新状态指示器
+        function updateStatusIndicator(status) {
+            const indicator = document.getElementById('statusIndicator');
+            
+            switch(status) {
+                case 'saved':
+                    indicator.className = 'status-indicator status-saved';
+                    indicator.innerHTML = '<i class="fas fa-check"></i> 已保存';
+                    break;
+                case 'saving':
+                    indicator.className = 'status-indicator status-saving';
+                    indicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+                    break;
+                case 'error':
+                    indicator.className = 'status-indicator status-error';
+                    indicator.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 保存失败';
+                    break;
+            }
+        }
+
+        // 加载协作者
+        async function loadCollaborators() {
+            try {
+                const { data, error } = await client
+                    .from('collaborations')
+                    .select('user_id, profiles(username)')
+                    .eq('project_id', currentProject.id)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                // 添加项目所有者
+                const { data: ownerData, error: ownerError } = await client
+                    .from('profiles')
+                    .select('id, username')
+                    .eq('id', currentProject.owner_id)
+                    .single();
+
+                if (ownerError) throw ownerError;
+
+                // 合并协作者和所有者，去重
+                const collaboratorIds = new Set();
+                collaborators = [];
+
+                // 添加所有者
+                collaborators.push({
+                    user_id: ownerData.id,
+                    username: ownerData.username,
+                    is_owner: true
+                });
+                collaboratorIds.add(ownerData.id);
+
+                // 添加协作者
+                if (data && data.length > 0) {
+                    data.forEach(collab => {
+                        if (!collaboratorIds.has(collab.user_id) && collab.profiles) {
+                            collaborators.push({
+                                user_id: collab.user_id,
+                                username: collab.profiles.username,
+                                is_owner: false
+                            });
+                            collaboratorIds.add(collab.user_id);
+                        }
+                    });
+                }
+
+                renderCollaborators();
+            } catch (error) {
+                console.error('加载协作者失败:', error);
+                alert('加载协作者失败: ' + error.message);
+            }
+        }
+
+        // 设置事件监听器
         function setupEventListeners() {
             // 新建项目按钮
             document.getElementById('addProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.add('active');
                 document.getElementById('projectNameInput').focus();
+            });
+
+            // 关闭新建项目模态框
+            document.getElementById('closeProjectModal').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.remove('active');
+                document.getElementById('projectNameInput').value = '';
+                document.getElementById('projectDescInput').value = '';
             });
 
             // 取消新建项目
@@ -355,67 +1513,383 @@
 
             // 确认新建项目
             document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
-                // 实现保持不变
+                const name = document.getElementById('projectNameInput').value.trim();
+                const description = document.getElementById('projectDescInput').value.trim();
+
+                if (!name) {
+                    alert('请输入项目名称');
+                    return;
+                }
+
+                const success = await createProject(name, description);
+                if (success) {
+                    document.getElementById('newProjectModal').classList.remove('active');
+                    document.getElementById('projectNameInput').value = '';
+                    document.getElementById('projectDescInput').value = '';
+                }
             });
 
-            // 其他按钮事件监听...
+            // 新建文件按钮
             document.getElementById('addFileBtn').addEventListener('click', () => {
-                // 实现保持不变
+                if (!currentProject) {
+                    alert('请先选择一个项目');
+                    return;
+                }
+                document.getElementById('newFileModal').classList.add('active');
+                document.getElementById('fileNameInput').focus();
             });
 
+            // 关闭新建文件模态框
+            document.getElementById('closeFileModal').addEventListener('click', () => {
+                document.getElementById('newFileModal').classList.remove('active');
+                document.getElementById('fileNameInput').value = '';
+            });
+
+            // 取消新建文件
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
-                // 实现保持不变
+                document.getElementById('newFileModal').classList.remove('active');
+                document.getElementById('fileNameInput').value = '';
             });
 
+            // 确认新建文件
             document.getElementById('confirmFileBtn').addEventListener('click', async () => {
-                // 实现保持不变
+                const name = document.getElementById('fileNameInput').value.trim();
+                const language = document.getElementById('fileLanguageSelect').value;
+
+                if (!name) {
+                    alert('请输入文件名称');
+                    return;
+                }
+
+                const success = await createFile(name, language);
+                if (success) {
+                    document.getElementById('newFileModal').classList.remove('active');
+                    document.getElementById('fileNameInput').value = '';
+                }
             });
 
+            // 分享项目按钮
             document.getElementById('shareBtn').addEventListener('click', () => {
-                // 实现保持不变
+                if (!currentProject) {
+                    alert('请先选择一个项目');
+                    return;
+                }
+                document.getElementById('shareProjectModal').classList.add('active');
+                renderCurrentCollaborators();
             });
 
+            // 关闭分享项目模态框
+            document.getElementById('closeShareModal').addEventListener('click', () => {
+                document.getElementById('shareProjectModal').classList.remove('active');
+            });
+
+            // 关闭分享按钮
             document.getElementById('closeShareBtn').addEventListener('click', () => {
-                // 实现保持不变
+                document.getElementById('shareProjectModal').classList.remove('active');
             });
 
+            // 复制链接按钮
             document.getElementById('copyLinkBtn').addEventListener('click', () => {
-                // 实现保持不变
+                const link = document.getElementById('projectShareLink').textContent;
+                navigator.clipboard.writeText(link).then(() => {
+                    const originalText = document.getElementById('copyLinkBtn').textContent;
+                    document.getElementById('copyLinkBtn').textContent = '已复制!';
+                    setTimeout(() => {
+                        document.getElementById('copyLinkBtn').textContent = originalText;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('无法复制链接: ', err);
+                    alert('复制失败，请手动复制');
+                });
             });
 
+            // 添加协作者按钮
             document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
-                // 实现保持不变
+                const email = document.getElementById('collaboratorEmailInput').value.trim();
+                
+                if (!email) {
+                    alert('请输入邮箱地址');
+                    return;
+                }
+                
+                // 简单验证邮箱格式
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    alert('请输入有效的邮箱地址');
+                    return;
+                }
+                
+                try {
+                    // 查找用户ID
+                    const { data, error } = await client
+                        .from('profiles')
+                        .select('id')
+                        .eq('email', email)
+                        .single();
+                    
+                    if (error) {
+                        if (error.code === 'PGRST116') {
+                            alert('该邮箱未注册');
+                            return;
+                        }
+                        throw error;
+                    }
+                    
+                    const userId = data.id;
+                    
+                    // 检查是否已经是协作者
+                    const isAlreadyCollaborator = collaborators.some(c => c.user_id === userId);
+                    if (isAlreadyCollaborator) {
+                        alert('该用户已经是协作者');
+                        return;
+                    }
+                    
+                    // 添加协作者
+                    const { error: collaborationError } = await client
+                        .from('collaborations')
+                        .insert([
+                            { project_id: currentProject.id, user_id: userId }
+                        ]);
+                    
+                    if (collaborationError) throw collaborationError;
+                    
+                    // 重新加载协作者
+                    await loadCollaborators();
+                    renderCurrentCollaborators();
+                    
+                    // 清空输入框
+                    document.getElementById('collaboratorEmailInput').value = '';
+                    
+                    alert('添加协作者成功');
+                } catch (error) {
+                    console.error('添加协作者失败:', error);
+                    alert('添加协作者失败: ' + error.message);
+                }
             });
 
+            // 运行按钮
             document.getElementById('runBtn').addEventListener('click', () => {
-                // 实现保持不变
+                if (!currentFile) {
+                    alert('请先选择一个文件');
+                    return;
+                }
+                
+                // 保存文件后再运行
+                saveCurrentFile().then(() => {
+                    alert('代码运行功能即将上线，敬请期待！');
+                });
             });
 
+            // 保存按钮
             document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
 
+            // 下载按钮
             document.getElementById('downloadBtn').addEventListener('click', () => {
-                // 实现保持不变
-            });
-
-            document.getElementById('downloadFileBtn').addEventListener('click', () => {
-                // 实现保持不变
+                if (!currentProject) {
+                    alert('请先选择一个项目');
+                    return;
+                }
+                
+                if (files.length === 0) {
+                    alert('项目中没有文件可下载');
+                    return;
+                }
+                
+                alert('项目下载功能即将上线，敬请期待！');
             });
         }
 
+        // 渲染协作者列表
         function renderCollaborators() {
-            // 实现保持不变
+            const collaboratorsList = document.getElementById('collaboratorsList');
+            collaboratorsList.innerHTML = '';
+
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator-item';
+                
+                const isCurrentUser = collaborator.user_id === currentUser.id;
+                
+                div.innerHTML = `
+                    <div class="collaborator-info">
+                        <div class="collaborator-avatar">
+                            ${collaborator.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div>${collaborator.username}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">
+                                ${collaborator.is_owner ? '所有者' : '协作者'}
+                                ${isCurrentUser ? ' (你)' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${!collaborator.is_owner && !isCurrentUser ? `
+                        <button class="remove-collaborator" data-user-id="${collaborator.user_id}" title="移除协作者">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                `;
+                
+                collaboratorsList.appendChild(div);
+            });
+
+            // 添加移除协作者事件监听
+            document.querySelectorAll('.remove-collaborator').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = e.currentTarget.getAttribute('data-user-id');
+                    if (confirm('确定要移除这个协作者吗？')) {
+                        await removeCollaborator(userId);
+                    }
+                });
+            });
         }
 
+        // 渲染当前协作者列表（分享模态框中）
+        function renderCurrentCollaborators() {
+            const listElement = document.getElementById('currentCollaboratorsList');
+            listElement.innerHTML = '';
+
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator-item';
+                
+                const isCurrentUser = collaborator.user_id === currentUser.id;
+                
+                div.innerHTML = `
+                    <div class="collaborator-info">
+                        <div class="collaborator-avatar">
+                            ${collaborator.username.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div>${collaborator.username}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">
+                                ${collaborator.is_owner ? '所有者' : '协作者'}
+                                ${isCurrentUser ? ' (你)' : ''}
+                            </div>
+                        </div>
+                    </div>
+                    ${!collaborator.is_owner && !isCurrentUser ? `
+                        <button class="remove-collaborator" data-user-id="${collaborator.user_id}" title="移除协作者">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : ''}
+                `;
+                
+                listElement.appendChild(div);
+            });
+
+            // 添加移除协作者事件监听
+            document.querySelectorAll('.remove-collaborator').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const userId = e.currentTarget.getAttribute('data-user-id');
+                    if (confirm('确定要移除这个协作者吗？')) {
+                        await removeCollaborator(userId);
+                        renderCurrentCollaborators();
+                    }
+                });
+            });
+        }
+
+        // 移除协作者
+        async function removeCollaborator(userId) {
+            // 检查当前用户是否是项目所有者
+            if (currentProject.owner_id !== currentUser.id) {
+                alert('只有项目所有者可以移除协作者');
+                return;
+            }
+
+            try {
+                const { error } = await client
+                    .from('collaborations')
+                    .delete()
+                    .eq('project_id', currentProject.id)
+                    .eq('user_id', userId);
+
+                if (error) throw error;
+
+                // 重新加载协作者
+                await loadCollaborators();
+            } catch (error) {
+                console.error('移除协作者失败:', error);
+                alert('移除协作者失败: ' + error.message);
+            }
+        }
+
+        // 创建项目
         async function createProject(name, description) {
-            // 实现保持不变
+            try {
+                const { data, error } = await client
+                    .from('projects')
+                    .insert([
+                        { 
+                            name: name, 
+                            description: description, 
+                            owner_id: currentUser.id 
+                        }
+                    ])
+                    .select();
+
+                if (error) throw error;
+
+                // 重新加载项目列表
+                await loadUserProjects();
+                
+                // 选择新创建的项目
+                await selectProject(data[0].id);
+                
+                return true;
+            } catch (error) {
+                console.error('创建项目失败:', error);
+                alert('创建项目失败: ' + error.message);
+                return false;
+            }
         }
 
+        // 创建文件
         async function createFile(name, language) {
-            // 实现保持不变
-        }
+            if (!currentProject) {
+                alert('请先选择一个项目');
+                return false;
+            }
 
-        function downloadCurrentFile() {
-            // 实现保持不变
+            try {
+                // 检查文件名是否已存在
+                const fileExists = files.some(f => f.name === name);
+                if (fileExists) {
+                    alert('该文件名已存在');
+                    return false;
+                }
+
+                const now = new Date();
+                
+                const { data, error } = await client
+                    .from('files')
+                    .insert([
+                        { 
+                            name: name, 
+                            language: language, 
+                            project_id: currentProject.id,
+                            content: '',
+                            last_updated_by: currentUser.id,
+                            updated_at: now.toISOString()
+                        }
+                    ])
+                    .select();
+
+                if (error) throw error;
+
+                // 重新加载文件列表
+                await loadProjectFiles();
+                
+                // 选择新创建的文件
+                await selectFile(data[0].id);
+                
+                return true;
+            } catch (error) {
+                console.error('创建文件失败:', error);
+                alert('创建文件失败: ' + error.message);
+                return false;
+            }
         }
     </script>
 </body>
