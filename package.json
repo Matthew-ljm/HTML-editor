@@ -2,6 +2,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
     "nodemailer": "^6.9.13",
-    "bcrypt": "^5.1.1"
-  }
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2"
+    }
 }
