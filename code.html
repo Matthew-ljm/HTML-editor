@@ -680,6 +680,8 @@
 
         // 获取Supabase配置
         async function getSupabaseConfig() {
+            const loading = document.getElementById('loadingIndicator');
+            loading.classList.remove('hidden');
             // 如果已经加载完成，直接返回
             if (supabaseUrl && supabaseKey) {
                 return true;
@@ -693,8 +695,6 @@
             // 开始新的请求
             isConfigLoading = true;
             configLoadPromise = (async () => {
-                const loading = document.getElementById('loadingIndicator');
-                loading.classList.remove('hidden');
                 try {
                     const response = await fetch('/api/supabase-config', {
                         method: 'GET',
@@ -769,7 +769,7 @@
             editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
                 lineNumbers: true,
                 theme: 'dracula',
-                lineWrapping: false,
+                lineWrapping: true,
                 indentUnit: 4,
                 tabSize: 4,
                 autoCloseBrackets: true,
