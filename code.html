@@ -562,7 +562,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
 
     <script>
-        // 屏蔽不必要的控制台输出
+        // 禁用控制台输出以增强安全性
         console.error = function() {};
         console.warn = function() {};
         console.info = function() {};
@@ -578,7 +578,7 @@
         console.count = function() {};
         console.clear = function() {};
         console.assert = function() {};
-
+        
         // 页面访问跟踪
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
@@ -589,6 +589,7 @@
             iframe.style.display = 'none';
             document.body.appendChild(iframe);
         }
+
         function setupTracking() {
             if (document.readyState === 'complete') {
                 setTimeout(trackPageVisit, 1000);
@@ -598,9 +599,10 @@
                 });
             }
         }
+        
         setupTracking();
-
-        // C++关键字提示列表
+        
+        // C++ 关键词列表，用于代码提示
         const cppKeywords = [
             "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
             "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t",
@@ -616,7 +618,7 @@
             "include", "define", "undef", "ifdef", "ifndef", "endif", "line", "error", "pragma"
         ];
 
-        // Cookie工具函数
+        // Cookie操作工具函数
         const cookieUtils = {
             setCookie: function(name, value, days) {
                 let expires = "";
@@ -668,8 +670,8 @@
         let checkUpdateInterval = null;
         let checkFileListInterval = null;
         let lastUpdateTime = null;
-
-        // Supabase配置
+        
+        // Supabase配置变量
         let supabaseUrl = null;
         let supabaseKey = null;
         let client = null;
@@ -680,12 +682,17 @@
         async function getSupabaseConfig() {
             const loading = document.getElementById('loadingIndicator');
             loading.classList.remove('hidden');
+            // 如果已经加载完成，直接返回
             if (supabaseUrl && supabaseKey) {
                 return true;
             }
+
+            // 如果正在加载中，等待同一个Promise
             if (isConfigLoading) {
                 return await configLoadPromise;
             }
+
+            // 开始新的请求
             isConfigLoading = true;
             configLoadPromise = (async () => {
                 try {
@@ -697,45 +704,58 @@
                         },
                         credentials: 'same-origin'
                     });
+
                     if (!response.ok) {
                         throw new Error('获取配置失败');
                     }
+
                     const config = await response.json();
+                    
+                    // 验证配置格式
                     if (typeof config.url !== 'string' || typeof config.key !== 'string') {
                         throw new Error('配置格式错误');
                     }
+
+                    // 缓存到变量
                     supabaseUrl = config.url;
                     supabaseKey = config.key;
+                    
+                    // 初始化客户端
                     client = supabase.createClient(supabaseUrl, supabaseKey);
                     return true;
                 } catch (error) {
-                    console.error('获取Supabase配置失败:', error);
-                    alert('初始化失败，请刷新页面重试');
+                    console.error('获取Supabase配置错误:', error);
+                    alert('无法连接到服务器，请稍后再试');
                     return false;
                 } finally {
                     isConfigLoading = false;
                     loading.classList.add('hidden');
                 }
             })();
+
             return await configLoadPromise;
         }
 
-        // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', async () => {
+            // 先获取Supabase配置
             const configLoaded = await getSupabaseConfig();
             if (!configLoaded) {
                 return;
             }
+
             const { username, userId } = cookieUtils.checkAuthCookies();
             if (!username || !userId) {
                 window.location.href = 'index.html';
                 return;
             }
+
             currentUser = { username, id: userId };
             document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+
             initEditor();
             await loadUserProjects();
             setupEventListeners();
+
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
                 clearInterval(saveInterval);
@@ -745,7 +765,6 @@
             });
         });
 
-        // 初始化编辑器（修复换行问题核心配置）
         function initEditor() {
             editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
                 lineNumbers: true,
@@ -755,7 +774,6 @@
                 tabSize: 4,
                 autoCloseBrackets: true,
                 matchBrackets: true,
-                lineHeight: 1.5, // 修复1：设置合适行高避免视觉混淆
                 extraKeys: {
                     'Ctrl-S': saveCurrentFile,
                     'Cmd-S': saveCurrentFile,
@@ -768,11 +786,6 @@
                         } else {
                             CodeMirror.commands.autocomplete(cm);
                         }
-                    },
-                    // 修复2：自定义Enter键行为，确保只插入一个换行
-                    'Enter': function(cm) {
-                        cm.replaceSelection('\n');
-                        cm.execCommand('indentAuto');
                     }
                 },
                 hintOptions: {
@@ -781,6 +794,7 @@
                     closeCharacters: /[\s()\[\]{};:>,]/,
                     hint: function(cm, options) {
                         const mode = cm.getMode().name;
+                        
                         if (mode.includes('python')) {
                             return CodeMirror.hint.python(cm, options);
                         } else if (mode.includes('html')) {
@@ -792,6 +806,7 @@
                     }
                 }
             });
+
             editor.on('change', (cm, change) => {
                 if (currentFile && !isSyncing) {
                     currentFile.hasChanges = true;
@@ -799,7 +814,6 @@
             });
         }
 
-        // C++提示处理
         function cppHint(cm, options) {
             const cursor = cm.getCursor();
             const token = cm.getTokenAt(cursor);
@@ -815,6 +829,7 @@
             }
             
             const list = cppKeywords.concat(Object.keys(words));
+            
             const start = token.start;
             const end = cursor.ch;
             const currentWord = token.string.slice(0, end - start);
@@ -832,28 +847,30 @@
             };
         }
 
-        // 设置编辑器模式
         function setEditorMode(language) {
             let mode;
+            
             switch (language) {
                 case 'html': mode = 'htmlmixed'; break;
                 case 'python': mode = 'python'; break;
                 case 'cpp': mode = 'text/x-c++src'; break;
                 default: mode = 'htmlmixed';
             }
+            
             editor.setOption('mode', mode);
         }
 
-        // 加载用户项目
         async function loadUserProjects() {
             try {
                 if (!currentUser?.id) return;
+
                 const { data: userProjects, error } = await client
                     .from('project_members')
                     .select('project_id, projects(*)')
                     .eq('user_id', currentUser.id);
                 
                 if (error) throw error;
+
                 projects = userProjects.map(item => item.projects);
                 renderProjectList();
                 
@@ -862,12 +879,11 @@
                 }
                 
             } catch (err) {
-                console.error('加载项目失败:', err);
+                console.error('加载项目错误:', err);
                 alert('加载项目失败: ' + err.message);
             }
         }
 
-        // 渲染项目列表
         function renderProjectList() {
             const projectList = document.getElementById('projectList');
             projectList.innerHTML = '';
@@ -882,12 +898,12 @@
             });
         }
 
-        // 选择项目
         async function selectProject(projectId) {
             try {
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
                 clearInterval(checkFileListInterval);
+
                 const { data: project, error: projectError } = await client
                     .from('projects')
                     .select('*')
@@ -916,12 +932,11 @@
                 setupTimers();
                 
             } catch (err) {
-                console.error('选择项目失败:', err);
-                alert('选择项目失败: ' + err.message);
+                console.error('选择项目错误:', err);
+                alert('加载项目失败: ' + err.message);
             }
         }
 
-        // 加载项目文件
         async function loadProjectFiles() {
             try {
                 if (!currentProject) return;
@@ -942,17 +957,17 @@
                 }
                 
             } catch (err) {
-                console.error('加载文件失败:', err);
+                console.error('加载项目文件错误:', err);
             }
         }
 
-        // 设置定时任务
         function setupTimers() {
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
                     saveCurrentFile();
                 }
             }, 1000);
+
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
                     checkFileUpdates();
@@ -966,10 +981,10 @@
             }, 2000);
         }
 
-        // 检查文件更新
         async function checkFileUpdates() {
             try {
                 if (!currentFile || currentFile.hasChanges) return;
+
                 const { data: file, error } = await client
                     .from('files')
                     .select('*')
@@ -990,25 +1005,21 @@
                 }
                 
             } catch (err) {
-                console.error('检查文件更新失败:', err);
+                console.error('检查文件更新错误:', err);
             }
         }
 
-        // 应用远程更改
         function applyRemoteChanges(content, lastUpdatedBy) {
             if (!currentFile) return;
             
             isSyncing = true;
             const cursor = editor.getCursor();
-            // 修复3：统一换行符
-            const normalizedContent = content.replace(/\r\n/g, '\n');
-            editor.setValue(normalizedContent);
+            editor.setValue(content);
             editor.setCursor(cursor);
             updateLastEditorInfo(lastUpdatedBy);
             isSyncing = false;
         }
 
-        // 更新最后编辑信息
         function updateLastEditorInfo(userId) {
             if (!userId) return;
             
@@ -1018,7 +1029,6 @@
             }
         }
 
-        // 渲染文件列表
         function renderFileList() {
             const fileList = document.getElementById('fileList');
             fileList.innerHTML = '';
@@ -1033,7 +1043,6 @@
             });
         }
 
-        // 选择文件（修复：统一换行符）
         async function selectFile(fileId) {
             try {
                 const file = files.find(f => f.id === fileId);
@@ -1041,170 +1050,324 @@
                 
                 currentFile = file;
                 isSyncing = true;
-                // 修复：统一换行符后加载
-                const normalizedContent = file.content ? file.content.replace(/\r\n/g, '\n') : '';
-                editor.setValue(normalizedContent);
+                editor.setValue(file.content || '');
                 setEditorMode(file.language);
-                updateLastEditorInfo(file.last_updated_by);
                 isSyncing = false;
-                renderFileList();
-                document.getElementById('currentFileName').textContent = file.name;
-                currentFile.hasChanges = false;
-                lastUpdateTime = new Date(file.updated_at).getTime();
+                document.getElementById('fileName').textContent = file.name;
+                updateLastEditorInfo(file.last_updated_by);
+                
+                document.querySelectorAll('.file-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
+                if (fileItem) fileItem.classList.add('active');
+                
             } catch (err) {
-                console.error('选择文件失败:', err);
+                console.error('选择文件错误:', err);
+                alert('加载文件失败: ' + err.message);
             }
         }
 
-        // 渲染协作者列表
-        function renderCollaborators() {
-            const collaboratorsList = document.getElementById('collaborators');
-            collaboratorsList.innerHTML = '';
-            
-            collaborators.forEach(collaborator => {
-                const isCurrentUser = collaborator.id === currentUser.id;
-                const li = document.createElement('li');
-                li.className = `collaborator ${isCurrentUser ? 'current-user' : ''}`;
-                li.innerHTML = `
-                    <div class="avatar">${collaborator.username.charAt(0).toUpperCase()}</div>
-                    <span>${collaborator.username} ${isCurrentUser ? '(你)' : ''}</span>
-                `;
-                collaboratorsList.appendChild(li);
-            });
-        }
-
-        // 保存当前文件（修复：统一换行符）
         async function saveCurrentFile() {
-            if (!currentFile || !currentProject || !currentUser || isSyncing) return;
+            if (!currentFile || !currentFile.hasChanges) return;
             
             try {
-                isSyncing = true;
                 const content = editor.getValue();
-                // 修复：保存时统一转换为LF换行符
-                const normalizedContent = content.replace(/\r\n/g, '\n');
                 const now = new Date();
                 
                 const { error } = await client
                     .from('files')
-                    .update({
-                        content: normalizedContent,
-                        updated_at: now.toISOString(),
-                        last_updated_by: currentUser.id
+                    .update({ 
+                        content: content,
+                        last_updated_by: currentUser.id,
+                        updated_at: now.toISOString()
                     })
                     .eq('id', currentFile.id);
                 
                 if (error) throw error;
                 
-                currentFile.content = normalizedContent;
-                currentFile.updated_at = now.toISOString();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await client
+                    .from('files')
+                    .update({ 
+                        content: content,
+                        last_updated_by: currentUser.id,
+                        updated_at: now.toISOString()
+                    })
+                    .eq('id', currentFile.id);
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await client
+                    .from('files')
+                    .update({ 
+                        content: content,
+                        last_updated_by: currentUser.id,
+                        updated_at: now.toISOString()
+                    })
+                    .eq('id', currentFile.id);
+
+                currentFile.content = content;
                 currentFile.last_updated_by = currentUser.id;
+                currentFile.updated_at = now.toISOString();
                 currentFile.hasChanges = false;
                 updateLastEditorInfo(currentUser.id);
                 
             } catch (err) {
-                console.error('保存文件失败:', err);
-                alert('保存失败: ' + err.message);
-            } finally {
-                isSyncing = false;
+                console.error('保存文件错误:', err);
+                alert('保存文件失败: ' + err.message);
             }
         }
 
-        // 添加新文件
-        async function addNewFile() {
-            if (!currentProject) return;
+        function runCode() {
+            if (!currentFile) {
+                alert('请先选择文件');
+                return;
+            }
             
-            const fileName = prompt('请输入文件名:');
-            if (!fileName) return;
+            const content = editor.getValue();
             
-            const fileExtension = fileName.split('.').pop().toLowerCase();
-            let language = 'text';
-            if (fileExtension === 'html') language = 'html';
-            else if (fileExtension === 'py') language = 'python';
-            else if (['cpp', 'c', 'h', 'hpp'].includes(fileExtension)) language = 'cpp';
-            
-            try {
-                const { data, error } = await client
-                    .from('files')
-                    .insert([{
-                        name: fileName,
-                        content: '',
-                        language: language,
-                        project_id: currentProject.id,
-                        created_by: currentUser.id,
-                        last_updated_by: currentUser.id
-                    }])
-                    .select();
-                
-                if (error) throw error;
-                
-                await loadProjectFiles();
-                const newFile = data[0];
-                await selectFile(newFile.id);
-                
-            } catch (err) {
-                console.error('创建文件失败:', err);
-                alert('创建文件失败: ' + err.message);
+            switch(currentFile.language) {
+                case 'html':
+                    const htmlWindow = window.open('', '_blank');
+                    htmlWindow.document.open();
+                    htmlWindow.document.write(content);
+                    htmlWindow.document.close();
+                    break;
+                case 'python':
+                case 'cpp':
+                    alert('当前文件类型不支持运行');
+                    break;
+                default:
+                    alert('当前文件类型不支持直接运行');
             }
         }
-
-        // 添加新项目
-        async function addNewProject() {
-            const projectName = prompt('请输入项目名称:');
-            if (!projectName) return;
-            
-            try {
-                const { data: project, error: projectError } = await client
-                    .from('projects')
-                    .insert([{
-                        name: projectName,
-                        created_by: currentUser.id
-                    }])
-                    .select()
-                    .single();
-                
-                if (projectError) throw projectError;
-                
-                const { error: memberError } = await client
-                    .from('project_members')
-                    .insert([{
-                        project_id: project.id,
-                        user_id: currentUser.id,
-                        role: 'owner'
-                    }]);
-                
-                if (memberError) throw memberError;
-                
-                await loadUserProjects();
-                await selectProject(project.id);
-                
-            } catch (err) {
-                console.error('创建项目失败:', err);
-                alert('创建项目失败: ' + err.message);
+        
+        function downloadCurrentFile() {
+            if (!currentFile) {
+                alert('请先选择文件');
+                return;
             }
+            
+            const content = editor.getValue();
+            const fileName = currentFile.name;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = fileName;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            setTimeout(() => {
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(downloadLink.href);
+            }, 100);
         }
 
-        // 设置事件监听器
-        function setupEventListeners() {
-            document.getElementById('addFileBtn').addEventListener('click', addNewFile);
-            document.getElementById('addProjectBtn').addEventListener('click', addNewProject);
-            document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
-
-            // 窗口关闭前提示保存
-            window.addEventListener('beforeunload', (e) => {
-                if (currentFile && currentFile.hasChanges) {
-                    e.preventDefault();
-                    e.returnValue = '您有未保存的更改，确定要离开吗？';
-                    return e.returnValue;
-                }
+        function renderCollaborators() {
+            const collaboratorsContainer = document.getElementById('collaborators');
+            collaboratorsContainer.innerHTML = '';
+            
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator';
+                div.innerHTML = `
+                    <div class="collaborator-avatar">
+                        ${collaborator.username.charAt(0).toUpperCase()}
+                        <div class="collaborator-active"></div>
+                    </div>
+                    <div class="collaborator-name">${collaborator.username}</div>
+                `;
+                collaboratorsContainer.appendChild(div);
             });
         }
 
-        // 页面关闭时清理
-        window.addEventListener('unload', () => {
-            clearInterval(saveInterval);
-            clearInterval(checkUpdateInterval);
-            clearInterval(checkFileListInterval);
-        });
+        function setupEventListeners() {
+            document.getElementById('addProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.add('active');
+                document.getElementById('projectNameInput').focus();
+            });
+            
+            document.getElementById('cancelProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.remove('active');
+            });
+            
+            document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
+                const name = document.getElementById('projectNameInput').value.trim();
+                const description = document.getElementById('projectDescInput').value.trim();
+                
+                if (!name) {
+                    alert('请输入项目名称');
+                    return;
+                }
+                
+                try {
+                    const { data: project, error } = await client
+                        .from('projects')
+                        .insert([{ 
+                            name,
+                            description,
+                            created_by: currentUser.id
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: project.id,
+                            user_id: currentUser.id,
+                            role: 'owner'
+                        }]);
+                    
+                    document.getElementById('newProjectModal').classList.remove('active');
+                    document.getElementById('projectNameInput').value = '';
+                    document.getElementById('projectDescInput').value = '';
+                    await loadUserProjects();
+                    
+                } catch (err) {
+                    console.error('创建项目错误:', err);
+                    alert('创建项目失败: ' + err.message);
+                }
+            });
+            
+            document.getElementById('addFileBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择项目');
+                    return;
+                }
+                
+                document.getElementById('newFileModal').classList.add('active');
+                document.getElementById('fileNameInput').focus();
+            });
+            
+            document.getElementById('cancelFileBtn').addEventListener('click', () => {
+                document.getElementById('newFileModal').classList.remove('active');
+            });
+            
+            document.getElementById('confirmFileBtn').addEventListener('click', async () => {
+                const name = document.getElementById('fileNameInput').value.trim();
+                const language = document.getElementById('fileLanguageSelect').value;
+                
+                if (!name) {
+                    alert('请输入文件名称');
+                    return;
+                }
+                
+                try {
+                    const { data: file, error } = await client
+                        .from('files')
+                        .insert([{ 
+                            name,
+                            language,
+                            content: '',
+                            project_id: currentProject.id,
+                            created_by: currentUser.id,
+                            last_updated_by: currentUser.id
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    document.getElementById('newFileModal').classList.remove('active');
+                    document.getElementById('fileNameInput').value = '';
+                    await selectProject(currentProject.id);
+                    await selectFile(file.id);
+                    
+                } catch (err) {
+                    console.error('创建文件错误:', err);
+                    alert('创建文件失败: ' + err.message);
+                }
+            });
+            
+            document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
+            document.getElementById('runBtn').addEventListener('click', runCode);
+            document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
+            
+            document.getElementById('shareBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择项目');
+                    return;
+                }
+                
+                const shareLink = `${window.location.origin}/code.html?project=${currentProject.id}`;
+                document.getElementById('shareLinkInput').value = shareLink;
+                document.getElementById('shareModal').classList.add('active');
+            });
+            
+            document.getElementById('copyLinkBtn').addEventListener('click', () => {
+                const shareInput = document.getElementById('shareLinkInput');
+                shareInput.select();
+                document.execCommand('copy');
+                alert('链接已复制到剪贴板');
+            });
+            
+            document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
+            
+            document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
+                const username = document.getElementById('collaboratorInput').value.trim();
+                
+                if (!username) {
+                    alert('请输入用户名');
+                    return;
+                }
+                
+                try {
+                    const { data: user, error: userError } = await client
+                        .from('users')
+                        .select('id')
+                        .eq('username', username)
+                        .single();
+                    
+                    if (userError || !user) {
+                        throw new Error('用户不存在');
+                    }
+                    
+                    const isAlreadyMember = collaborators.some(c => c.id === user.id);
+                    if (isAlreadyMember) {
+                        alert('该用户已经是项目成员');
+                        return;
+                    }
+                    
+                    const { error: memberError } = await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: currentProject.id,
+                            user_id: user.id,
+                            role: 'editor'
+                        }]);
+                    
+                    if (memberError) throw memberError;
+                    
+                    collaborators.push({
+                        id: user.id,
+                        username
+                    });
+                    
+                    renderCollaborators();
+                    document.getElementById('collaboratorInput').value = '';
+                    alert(`已成功添加 ${username} 为协作者`);
+                    
+                } catch (err) {
+                    console.error('添加协作者错误:', err);
+                    alert('添加协作者失败: ' + err.message);
+                }
+            });
+            
+            document.getElementById('closeShareBtn').addEventListener('click', () => {
+                document.getElementById('shareModal').classList.remove('active');
+            });
+            
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                    }
+                });
+            });
+        }
     </script>
 </body>
 </html>
