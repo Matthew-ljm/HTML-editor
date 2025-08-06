@@ -319,7 +319,7 @@
                 const date = new Date();
                 date.setTime(date.getTime() + (seconds * 1000));
                 const expires = "expires=" + date.toUTCString();
-                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Strict`;
+                document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Lax`;
             },
             getCookie: function(name) {
                 const value = `; ${document.cookie}`;
