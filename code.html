@@ -774,6 +774,7 @@
                 tabSize: 4,
                 autoCloseBrackets: true,
                 matchBrackets: true,
+                electricChars: false,
                 extraKeys: {
                     'Ctrl-S': saveCurrentFile,
                     'Cmd-S': saveCurrentFile,
@@ -784,7 +785,7 @@
                         if (cm.somethingSelected()) {
                             cm.indentSelection('add');
                         } else {
-                            CodeMirror.commands.autocomplete(cm);
+                            cm.execCommand('indentMore');
                         }
                     }
                 },
