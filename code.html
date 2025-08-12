@@ -550,7 +550,7 @@
                 transform: translateX(-50%);
                 background-color: rgba(30, 41, 59, 0.9);
                 color: #e2e8f0;
-                padding: 10px 30px;
+                padding: 10px 50px;
                 border-radius: 5px;
                 font-size: 0.9rem;
                 z-index: 10000; /* 确保在最上层 */
@@ -1259,7 +1259,7 @@
                         currentFile.hasChanges = false;
                     }
                 }
-            }, 1000);
+            }, 2000);
             
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
@@ -1289,10 +1289,12 @@
                     }
                     
                     currentFile.content = file.content;
-                    editor.setValue(newContent);
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
                     currentFile.hasChanges = false;
+                    console.log(editor.getValue());
+                    editor.setValue(newContent);
+                    console.log('文件已更新:', currentFile.content);
                 }
                 
             } catch (err) {
@@ -1379,24 +1381,6 @@
                 if (error) throw error;
                 
                 await new Promise(resolve => setTimeout(resolve, 500));
-                await client
-                    .from('files')
-                    .update({ 
-                        content: content,
-                        last_updated_by: currentUser.id,
-                        updated_at: now.toISOString()
-                    })
-                    .eq('id', currentFile.id);
-
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await client
-                    .from('files')
-                    .update({ 
-                        content: content,
-                        last_updated_by: currentUser.id,
-                        updated_at: now.toISOString()
-                    })
-                    .eq('id', currentFile.id);
 
                 currentFile.content = content;
                 currentFile.last_updated_by = currentUser.id;
