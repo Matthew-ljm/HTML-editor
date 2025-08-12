@@ -1171,10 +1171,7 @@
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
                 document.getElementById('newFileModal').classList.remove('active');
             });
-
-            document.getElementById('confirmFileBtn').addEventListener('click', async () => {
-                const fileName = document.getElementById('fileNameInput').value.trim();
-                const language = document.getElementById('fileLanguageSelect').value;
+        }
 
         async function selectProject(projectId) {
             try {
