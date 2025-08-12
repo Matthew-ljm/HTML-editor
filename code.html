@@ -396,28 +396,49 @@
         }
 
         .loading-indicator {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 8px 16px;
-        background: #3b82f6;
-        color: white;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        z-index: 9999; /* 确保在最上层 */
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999; /* 确保在最上层 */
         }
 
-        /* 注意：这里将类名修正为hidden（正确的拼写） */
         .hidden {
-        display: none;
+            display: none;
+        }
+
+        .loading-indicator2 {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999; /* 确保在最上层 */
+        }
+
+        .hidden2 {
+            display: none;
         }
     </style>
 </head>
 <body>
     <div id="loadingIndicator" class="loading-indicator">
+    <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载页面...
+    </div>
+    <div id="loadingIndicator2" class="loading-indicator2">
     <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载页面...
     </div>
     <header>
@@ -682,8 +703,8 @@
 
         // 获取Supabase配置
         async function getSupabaseConfig() {
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.remove('hidden');
+            const loading = document.getElementById('loadingIndicator2');
+            loading.classList.remove('hidden2');
             // 如果已经加载完成，直接返回
             if (supabaseUrl && supabaseKey) {
                 return true;
@@ -729,6 +750,9 @@
                     console.error('获取Supabase配置错误:', error);
                     alert('无法连接到服务器，请稍后再试');
                     return false;
+                } finally {
+                    isConfigLoading = false;
+                    loading.classList.add('hidden2');
                 }
             })();
 
@@ -1369,7 +1393,7 @@
             });
         }
         window.onload = function() {
-            isConfigLoading = false;
+            const loading = document.getElementById('loadingIndicator');
             loading.classList.add('hidden');
         };
         window.onbeforeunload = function() {
