@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>M-Code协作编辑器</title>
+    <title>M-Code实时协作编辑器</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
@@ -436,7 +436,7 @@
         .switches-container {
             display: flex;
             align-items: center;
-            gap: 10px; /* 开关之间的间距 */
+            gap: 20px; /* 开关之间的间距 */
             margin-left: 10px; /* 左边距 */
         }
 
@@ -495,6 +495,48 @@
         input:checked + .slider:before {
             transform: translateX(26px);
         }
+
+        /* 在现有样式基础上添加 */
+        @media (max-width: 1000px) {
+            /* 调整开关大小和间距 */
+            .switches-container {
+                gap: 10px;
+                margin-left: 5px;
+            }
+
+            .switch {
+                width: 40px;
+                height: 20px;
+            }
+
+            .switch-text {
+                font-size: 0.75rem;
+            }
+
+            .slider:before {
+                height: 14px;
+                width: 14px;
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(20px);
+            }
+
+            /* 工具栏调整 */
+            .toolbar {
+                padding: 8px 10px;
+                flex-wrap: wrap;
+            }
+
+            .toolbar-actions {
+                gap: 5px;
+            }
+
+            .toolbar-btn {
+                padding: 5px 8px;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -507,7 +549,7 @@
     <header>
         <div class="logo">
             <i class="fas fa-code"></i>
-            <span>M-Code</span>
+            <span>M-Code实时协作编辑器</span>
         </div>
         <div class="user-info">
             <div class="avatar" id="userAvatar">M</div> <!-- 用户头像，默认为首字母 -->
@@ -551,7 +593,7 @@
                     <!-- 开关容器 -->
                     <div class="switches-container">
                         <div class="switch-item">
-                            <div class="switch-text">实时同步模式</div>
+                            <div class="switch-text">多端协作模式</div>
                             <label class="switch">
                                 <input type="checkbox" id="liveSync">
                                 <span class="slider"></span>
@@ -567,7 +609,7 @@
                         </div>
                         
                         <div class="switch-item">
-                            <div class="switch-text">自动刷新</div>
+                            <div class="switch-text">实时刷新</div>
                             <label class="switch">
                                 <input type="checkbox" id="autoRefresh">
                                 <span class="slider"></span>
