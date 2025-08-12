@@ -496,12 +496,11 @@
             transform: translateX(26px);
         }
 
-        /* 在现有样式基础上添加 */
         @media (max-width: 1000px) {
             /* 调整开关大小和间距 */
             .switches-container {
-                gap: 10px;
-                margin-left: 5px;
+                gap: 1px;
+                margin-left: 1px;
             }
 
             .switch {
@@ -536,6 +535,10 @@
                 padding: 5px 8px;
                 font-size: 0.8rem;
             }
+
+            .switch-item {
+                gap: 1px;
+            }
         }
     </style>
 </head>
@@ -554,7 +557,7 @@
         <div class="user-info">
             <div class="avatar" id="userAvatar">M</div> <!-- 用户头像，默认为首字母 -->
             <button class="logout-btn" id="logoutBtn">
-                <i class="fas fa-sign-out-alt"></i> 退出
+                <i class="fas fa-sign-out-alt"></i> 退出登录
             </button>
         </div>
     </header>
