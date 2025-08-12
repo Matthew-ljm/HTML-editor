@@ -1289,10 +1289,10 @@
                     }
                     
                     currentFile.content = file.content;
+                    editor.setValue(newContent);
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
                     currentFile.hasChanges = false;
-                    console.log('文件已更新:', file.content, currentFile.content);
                 }
                 
             } catch (err) {
