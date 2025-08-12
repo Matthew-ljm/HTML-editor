@@ -649,267 +649,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
 
     <script>
-        const loading = document.getElementById('loadingIndicator');
-        loading.classList.remove('hidden');
-        // 禁用控制台输出以增强安全性
-        console.error = function() {};
-        console.warn = function() {};
-        console.info = function() {};
-        console.debug = function() {};
-        console.table = function() {};
-        console.dir = function() {};
-        console.trace = function() {};
-        console.group = function() {};
-        console.groupEnd = function() {};
-        console.groupCollapsed = function() {};
-        console.time = function() {};
-        console.timeEnd = function() {};
-        console.count = function() {};
-        console.clear = function() {};
-        console.assert = function() {};
-        
-        // 页面访问跟踪
-        function trackPageVisit() {
-            const currentPageUrl = window.location.href;
-            const trackerUrl = 'https://mail.m-code.top/';
-            const fullTrackerUrl = `${trackerUrl}?url=${encodeURIComponent(currentPageUrl)}`;
-            var iframe = document.createElement('iframe');
-            iframe.src = fullTrackerUrl;
-            iframe.style.display = 'none';
-            document.body.appendChild(iframe);
-        }
-
-        function setupTracking() {
-            if (document.readyState === 'complete') {
-                setTimeout(trackPageVisit, 1000);
-            } else {
-                window.addEventListener('load', () => {
-                    setTimeout(trackPageVisit, 1000);
-                });
-            }
-        }
-        
-        setupTracking();
-        
-        // C++ 关键词列表，用于代码提示
-        const cppKeywords = [
-            "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
-            "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t",
-            "class", "compl", "concept", "const", "consteval", "constexpr", "const_cast",
-            "continue", "co_await", "co_return", "co_yield", "decltype", "default", "delete",
-            "do", "double", "dynamic_cast", "else", "enum", "explicit", "export", "extern",
-            "false", "float", "for", "friend", "goto", "if", "inline", "int", "long", "mutable",
-            "namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
-            "private", "protected", "public", "register", "reinterpret_cast", "requires", "return",
-            "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch",
-            "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
-            "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
-            "include", "define", "undef", "ifdef", "ifndef", "endif", "line", "error", "pragma"
-        ];
-
-        // Cookie操作工具函数
-        const cookieUtils = {
-            setCookie: function(name, value, days) {
-                let expires = "";
-                if (days) {
-                    const date = new Date();
-                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-                    expires = "; expires=" + date.toUTCString();
-                }
-                document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-            },
-            getCookie: function(name) {
-                const nameEQ = name + "=";
-                const ca = document.cookie.split(';');
-                for(let i=0;i < ca.length;i++) {
-                    let c = ca[i];
-                    while (c.charAt(0) === ' ') c = c.substring(1,c.length);
-                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length,c.length);
-                }
-                return null;
-            },
-            deleteCookie: function(name) {
-                document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            },
-            setAuthCookies: function(username, userId, days = 7) {
-                this.setCookie('mcode_username', username, days);
-                this.setCookie('mcode_userid', userId, days);
-            },
-            clearAuthCookies: function() {
-                this.deleteCookie('mcode_username');
-                this.deleteCookie('mcode_userid');
-            },
-            checkAuthCookies: function() {
-                const username = this.getCookie('mcode_username');
-                const userId = this.getCookie('mcode_userid');
-                return { username, userId };
-            }
-        };
-
-        // 全局变量
-        let currentUser = null;
-        let currentProject = null;
-        let currentFile = null;
-        let editor = null;
-        let projects = [];
-        let files = [];
-        let collaborators = [];
-        let isSyncing = false;
-        let saveInterval = null;
-        let checkUpdateInterval = null;
-        let checkFileListInterval = null;
-        let lastUpdateTime = null;
-        
-        // 开关状态变量
-        let realtimeSyncEnabled = true;
-        let autoSaveEnabled = true;
-        let autoRefreshEnabled = true;
-        
-        // Supabase配置变量
-        let supabaseUrl = null;
-        let supabaseKey = null;
-        let client = null;
-        let isConfigLoading = false;
-        let configLoadPromise = null;
-
-        // 获取Supabase配置
-        async function getSupabaseConfig() {
-            // 如果已经加载完成，直接返回
-            if (supabaseUrl && supabaseKey) {
-                return true;
-            }
-
-            // 如果正在加载中，等待同一个Promise
-            if (isConfigLoading) {
-                return await configLoadPromise;
-            }
-
-            // 开始新的请求
-            isConfigLoading = true;
-            configLoadPromise = (async () => {
-                try {
-                    const response = await fetch('/api/supabase-config', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        credentials: 'same-origin'
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('获取配置失败');
-                    }
-
-                    const config = await response.json();
-                    
-                    // 验证配置格式
-                    if (typeof config.url !== 'string' || typeof config.key !== 'string') {
-                        throw new Error('配置格式错误');
-                    }
-
-                    // 缓存到变量
-                    supabaseUrl = config.url;
-                    supabaseKey = config.key;
-                    
-                    // 初始化客户端
-                    client = supabase.createClient(supabaseUrl, supabaseKey);
-                    return true;
-                } catch (error) {
-                    console.error('获取Supabase配置错误:', error);
-                    alert('无法连接到服务器，请稍后再试');
-                    return false;
-                } finally {
-                    isConfigLoading = false;
-                    loading.classList.add('hidden');
-                }
-            })();
-
-            return await configLoadPromise;
-        }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 先获取Supabase配置
-            const configLoaded = await getSupabaseConfig();
-            if (!configLoaded) {
-                return;
-            }
-
-            const { username, userId } = cookieUtils.checkAuthCookies();
-            if (!username || !userId) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            currentUser = { username, id: userId };
-            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
-
-            initEditor();
-            await loadUserProjects();
-            setupEventListeners();
-            setupToggleListeners();
-
-            document.getElementById('logoutBtn').addEventListener('click', () => {
-                cookieUtils.clearAuthCookies();
-                clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
-                window.location.href = 'index.html';
-            });
-        });
-
-        function setupToggleListeners() {
-            const realtimeSyncToggle = document.getElementById('realtimeSyncToggle');
-            const autoSaveToggle = document.getElementById('autoSaveToggle');
-            const autoRefreshToggle = document.getElementById('autoRefreshToggle');
-
-            // 初始化开关状态
-            realtimeSyncToggle.checked = realtimeSyncEnabled;
-            autoSaveToggle.checked = autoSaveEnabled;
-            autoRefreshToggle.checked = autoRefreshEnabled;
-
-            // 实时同步模式开关事件
-            realtimeSyncToggle.addEventListener('change', function() {
-                realtimeSyncEnabled = this.checked;
-                
-                // 如果开启实时同步，强制开启自动保存和自动刷新
-                if (realtimeSyncEnabled) {
-                    autoSaveEnabled = true;
-                    autoRefreshEnabled = true;
-                    autoSaveToggle.checked = true;
-                    autoRefreshToggle.checked = true;
-                    autoSaveToggle.disabled = true;
-                    autoRefreshToggle.disabled = true;
-                } else {
-                    autoSaveToggle.disabled = false;
-                    autoRefreshToggle.disabled = false;
-                }
-                
-                // 更新定时器状态
-                updateTimers();
-            });
-
-            // 自动保存开关事件
-            autoSaveToggle.addEventListener('change', function() {
-                if (!realtimeSyncEnabled) {
-                    autoSaveEnabled = this.checked;
-                    updateTimers();
-                }
-            });
-
-            // 自动刷新开关事件
-            autoRefreshToggle.addEventListener('change', function() {
-                if (!realtimeSyncEnabled) {
-                    autoRefreshEnabled = this.checked;
-                    updateTimers();
-                }
-            });
-        }
-
-        function updateTimers() {
-            // 清除现有定时器
+        function setupTimers() {
+            // 清除现有所有定时器
             clearInterval(saveInterval);
             clearInterval(checkUpdateInterval);
+            clearInterval(checkFileListInterval);
             
             // 根据开关状态设置新的定时器
             if (autoSaveEnabled) {
@@ -927,125 +671,145 @@
                     }
                 }, 1000);
             }
-        }
-
-        function initEditor() {
-            editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
-                lineNumbers: true,
-                theme: 'dracula',
-                lineWrapping: true,
-                indentUnit: 4,
-                tabSize: 4,
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                electricChars: false,
-                extraKeys: {
-                    'Ctrl-S': saveCurrentFile,
-                    'Cmd-S': saveCurrentFile,
-                    'Ctrl-Space': 'autocomplete',
-                    'Alt-Space': 'autocomplete',
-                    'Ctrl-Enter': 'autocomplete',
-                    // 'Tab': function(cm) {
-                    //     if (cm.somethingSelected()) {
-                    //         cm.indentSelection('add');
-                    //     } else {
-                    //         cm.execCommand('indentMore');
-                    //     }
-                    // }
-                },
-                hintOptions: {
-                    completeSingle: false,
-                    alignWithWord: true,
-                    closeCharacters: /[\s()\[\]{};:>,]/,
-                    hint: function(cm, options) {
-                        const mode = cm.getMode().name;
-                        
-                        if (mode.includes('python')) {
-                            return CodeMirror.hint.python(cm, options);
-                        } else if (mode.includes('html')) {
-                            return CodeMirror.hint.html(cm, options);
-                        } else if (mode.includes('clike')) {
-                            return cppHint(cm, options);
-                        }
-                        return CodeMirror.hint.anyword(cm, options);
+            
+            // 新增逻辑：只有当实时同步或自动刷新开启时，才启用文件列表查询
+            if (realtimeSyncEnabled || autoRefreshEnabled) {
+                checkFileListInterval = setInterval(() => {
+                    if (currentProject) {
+                        loadProjectFiles();
                     }
-                }
-            });
-
-            editor.on('change', (cm, change) => {
-                if (currentFile && !isSyncing) {
-                    currentFile.hasChanges = true;
-                }
-            });
+                }, 2000);
+            } else {
+                // 当两者都关闭时，确保定时器被清除
+                clearInterval(checkFileListInterval);
+                checkFileListInterval = null;
+            }
         }
 
-        function cppHint(cm, options) {
-            const cursor = cm.getCursor();
-            const token = cm.getTokenAt(cursor);
-            const line = cm.getLine(cursor.line);
+        // 替换原有的setupTimers函数
+        function setupTimers() {
+            // 清除现有所有定时器
+            clearInterval(saveInterval);
+            clearInterval(checkUpdateInterval);
+            clearInterval(checkFileListInterval);
             
-            const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-            let words = {};
-            const text = cm.getValue();
-            let match;
-            
-            while (match = wordRegex.exec(text)) {
-                words[match[0]] = true;
+            // 根据开关状态设置新的定时器
+            if (autoSaveEnabled) {
+                saveInterval = setInterval(() => {
+                    if (currentFile && currentFile.hasChanges) {
+                        saveCurrentFile();
+                    }
+                }, 1000);
+            }
+
+            if (autoRefreshEnabled) {
+                checkUpdateInterval = setInterval(() => {
+                    if (currentFile && !currentFile.hasChanges) {
+                        checkFileUpdates();
+                    }
+                }, 1000);
             }
             
-            const list = cppKeywords.concat(Object.keys(words));
-            
-            const start = token.start;
-            const end = cursor.ch;
-            const currentWord = token.string.slice(0, end - start);
-            
-            const filteredList = list.filter(item => 
-                item.toLowerCase().startsWith(currentWord.toLowerCase())
-            ).sort();
-            
-            if (filteredList.length === 0) return null;
-            
-            return {
-                list: filteredList,
-                from: CodeMirror.Pos(cursor.line, start),
-                to: CodeMirror.Pos(cursor.line, end)
-            };
-        }
-
-        function setEditorMode(language) {
-            let mode;
-            
-            switch (language) {
-                case 'html': mode = 'htmlmixed'; break;
-                case 'python': mode = 'python'; break;
-                case 'cpp': mode = 'text/x-c++src'; break;
-                default: mode = 'htmlmixed';
+            // 新增逻辑：只有当实时同步或自动刷新开启时，才启用文件列表查询
+            if (realtimeSyncEnabled || autoRefreshEnabled) {
+                checkFileListInterval = setInterval(() => {
+                    if (currentProject) {
+                        loadProjectFiles();
+                    }
+                }, 2000);
+            } else {
+                // 当两者都关闭时，确保定时器被清除
+                clearInterval(checkFileListInterval);
+                checkFileListInterval = null;
             }
-            
-            editor.setOption('mode', mode);
         }
 
-        async function loadUserProjects() {
+            // 同时在setupToggleListeners函数中确保切换开关时会更新文件列表查询状态
+        async function checkFileUpdates() {
             try {
-                if (!currentUser?.id) return;
+                if (!currentFile || currentFile.hasChanges) return;
 
-                const { data: userProjects, error } = await client
-                    .from('project_members')
-                    .select('project_id, projects(*)')
-                    .eq('user_id', currentUser.id);
+                const { data: file, error } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('id', currentFile.id)
+                    .single();
                 
                 if (error) throw error;
-
-                projects = userProjects.map(item => item.projects);
-                renderProjectList();
                 
-                if (projects.length > 0) {
-                    await selectProject(projects[0].id);
+                if (file.updated_at !== currentFile.updated_at) {
+                    if (file.last_updated_by !== currentUser.id) {
+                        applyRemoteChanges(file.content, file.last_updated_by);
+                    }
+                    
+                    currentFile.content = file.content;
+                    currentFile.updated_at = file.updated_at;
+                    currentFile.last_updated_by = file.last_updated_by;
+                    currentFile.hasChanges = false;
                 }
                 
             } catch (err) {
-                console.error('加载项目错误:', err);
-                alert('加载项目失败: ' + err.message);
+                console.error('检查文件更新错误:', err);
+            }
+        }
+
+        function applyRemoteChanges(content, lastUpdatedBy) {
+            if (!currentFile) return;
+            
+            isSyncing = true;
+            const cursor = editor.getCursor();
+            editor.setValue(content);
+            editor.setCursor(cursor);
+            updateLastEditorInfo(lastUpdatedBy);
+            isSyncing = false;
+        }
+
+        function updateLastEditorInfo(userId) {
+            if (!userId) return;
+            
+            const collaborator = collaborators.find(c => c.id === userId);
+            if (collaborator) {
+                document.getElementById('lastEditor').textContent = `最后编辑: ${collaborator.username}`;
+            }
+        }
+
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
+                li.innerHTML = `<i class="fas fa-file-code"></i><span>${file.name}</span>`;
+                li.dataset.fileId = file.id;
+                li.addEventListener('click', () => selectFile(file.id));
+                fileList.appendChild(li);
+            });
+        }
+
+        async function selectFile(fileId) {
+            try {
+                const file = files.find(f => f.id === fileId);
+                if (!file) return;
+                
+                currentFile = file;
+                isSyncing = true;
+                editor.setValue(file.content || '');
+                setEditorMode(file.language);
+                isSyncing = false;
+                document.getElementById('fileName').textContent = file.name;
+                updateLastEditorInfo(file.last_updated_by);
+                
+                document.querySelectorAll('.file-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
+                if (fileItem) fileItem.classList.add('active');
+                
+            } catch (err) {
+                console.error('选择文件错误:', err);
+                alert('加载文件失败: ' + err.message);
             }
         }
 
@@ -1099,320 +863,254 @@
             }
         }
 
-        function renderProjectList() {
-            const projectList = document.getElementById('projectList');
-            projectList.innerHTML = '';
+        function runCode() {
+            if (!currentFile) {
+                alert('请先选择文件');
+                return;
+            }
             
-            projects.forEach(project => {
-                const li = document.createElement('li');
-                li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-folder"></i><span>${project.name}</span>`;
-                li.dataset.projectId = project.id;
-                li.addEventListener('click', () => selectProject(project.id));
-                projectList.appendChild(li);
+            const content = editor.getValue();
+            
+            switch(currentFile.language) {
+                case 'html':
+                    const htmlWindow = window.open('', '_blank');
+                    htmlWindow.document.open();
+                    htmlWindow.document.write(content);
+                    htmlWindow.document.close();
+                    break;
+                case 'python':
+                case 'cpp':
+                    alert('当前文件类型不支持运行');
+                    break;
+                default:
+                    alert('当前文件类型不支持直接运行');
+            }
+        }
+        
+        function downloadCurrentFile() {
+            if (!currentFile) {
+                alert('请先选择文件');
+                return;
+            }
+            
+            const content = editor.getValue();
+            const fileName = currentFile.name;
+            const blob = new Blob([content], { type: 'text/plain' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = fileName;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            setTimeout(() => {
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(downloadLink.href);
+            }, 100);
+        }
+
+        function renderCollaborators() {
+            const collaboratorsContainer = document.getElementById('collaborators');
+            collaboratorsContainer.innerHTML = '';
+            
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator';
+                div.innerHTML = `
+                    <div class="collaborator-avatar">
+                        ${collaborator.username.charAt(0).toUpperCase()}
+                        <div class="collaborator-active"></div>
+                    </div>
+                    <div class="collaborator-name">${collaborator.username}</div>
+                `;
+                collaboratorsContainer.appendChild(div);
             });
         }
 
         function setupEventListeners() {
             document.getElementById('addProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.add('active');
-                document.getElementById('projectNameInput').value = '';
-                document.getElementById('projectDescInput').value = '';
+                document.getElementById('projectNameInput').focus();
             });
-
+            
             document.getElementById('cancelProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.remove('active');
             });
-
+            
             document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
                 const name = document.getElementById('projectNameInput').value.trim();
-                const desc = document.getElementById('projectDescInput').value.trim();
+                const description = document.getElementById('projectDescInput').value.trim();
                 
                 if (!name) {
-                    alert('项目名称不能为空');
+                    alert('请输入项目名称');
                     return;
                 }
                 
                 try {
-                    const { data: newProject, error } = await client
+                    const { data: project, error } = await client
                         .from('projects')
-                        .insert({
-                            name: name,
-                            description: desc,
+                        .insert([{ 
+                            name,
+                            description,
                             created_by: currentUser.id
-                        })
+                        }])
+                        .select()
                         .single();
                     
                     if (error) throw error;
                     
-                    projects.push(newProject);
-                    renderProjectList();
-                    selectProject(newProject.id);
+                    await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: project.id,
+                            user_id: currentUser.id,
+                            role: 'owner'
+                        }]);
                     
                     document.getElementById('newProjectModal').classList.remove('active');
+                    document.getElementById('projectNameInput').value = '';
+                    document.getElementById('projectDescInput').value = '';
+                    await loadUserProjects();
                     
                 } catch (err) {
                     console.error('创建项目错误:', err);
                     alert('创建项目失败: ' + err.message);
                 }
             });
-
+            
             document.getElementById('addFileBtn').addEventListener('click', () => {
                 if (!currentProject) {
-                    alert('请先选择一个项目');
+                    alert('请先选择项目');
                     return;
                 }
                 
                 document.getElementById('newFileModal').classList.add('active');
-                document.getElementById('fileNameInput').value = '';
-                document.getElementById('fileLanguageSelect').value = 'html';
+                document.getElementById('fileNameInput').focus();
             });
-
+            
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
                 document.getElementById('newFileModal').classList.remove('active');
             });
-        }
-
-        async function selectProject(projectId) {
-            try {
-                clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
-
-                const { data: project, error: projectError } = await client
-                    .from('projects')
-                    .select('*')
-                    .eq('id', projectId)
-                    .single();
-                
-                if (projectError) throw projectError;
-                
-                currentProject = project;
-                await loadProjectFiles();
-                
-                const { data: projectMembers, error: membersError } = await client
-                    .from('project_members')
-                    .select('user_id, users(username)')
-                    .eq('project_id', projectId);
-                
-                if (membersError) throw membersError;
-                
-                collaborators = projectMembers.map(member => ({
-                    id: member.user_id,
-                    username: member.users.username
-                }));
-                
-                renderCollaborators();
-                renderProjectList();
-                setupTimers();
-                
-            } catch (err) {
-                console.error('选择项目错误:', err);
-                alert('加载项目失败: ' + err.message);
-            }
-        }
-
-        function renderCollaborators() {
-            const collaboratorsDiv = document.getElementById('collaborators');
-            collaboratorsDiv.innerHTML = '';
             
-            collaborators.forEach(collaborator => {
-                const div = document.createElement('div');
-                div.className = 'collaborator';
-                div.textContent = collaborator.username;
-                div.title = `ID: ${collaborator.id}`;
-                collaboratorsDiv.appendChild(div);
-            });
-        }
-
-        async function loadProjectFiles() {
-            try {
-                if (!currentProject) return;
+            document.getElementById('confirmFileBtn').addEventListener('click', async () => {
+                const name = document.getElementById('fileNameInput').value.trim();
+                const language = document.getElementById('fileLanguageSelect').value;
                 
-                const { data: projectFiles, error: filesError } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('project_id', currentProject.id)
-                    .order('created_at', { ascending: true });
-                
-                if (filesError) throw filesError;
-                
-                files = projectFiles;
-                renderFileList();
-                
-                if (files.length > 0 && !currentFile) {
-                    await selectFile(files[0].id);
+                if (!name) {
+                    alert('请输入文件名称');
+                    return;
                 }
                 
-            } catch (err) {
-                console.error('加载项目文件错误:', err);
-            }
-        }
-
-        // 替换原有的setupTimers函数
-        function setupTimers() {
-            // 清除现有所有定时器
-            clearInterval(saveInterval);
-            clearInterval(checkUpdateInterval);
-            clearInterval(checkFileListInterval);
+                try {
+                    const { data: file, error } = await client
+                        .from('files')
+                        .insert([{ 
+                            name,
+                            language,
+                            content: '',
+                            project_id: currentProject.id,
+                            created_by: currentUser.id,
+                            last_updated_by: currentUser.id
+                        }])
+                        .select()
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    document.getElementById('newFileModal').classList.remove('active');
+                    document.getElementById('fileNameInput').value = '';
+                    await selectProject(currentProject.id);
+                    await selectFile(file.id);
+                    
+                } catch (err) {
+                    console.error('创建文件错误:', err);
+                    alert('创建文件失败: ' + err.message);
+                }
+            });
             
-            // 根据开关状态设置新的定时器
-            if (autoSaveEnabled) {
-                saveInterval = setInterval(() => {
-                    if (currentFile && currentFile.hasChanges) {
-                        saveCurrentFile();
-                    }
-                }, 1000);
-            }
-
-            if (autoRefreshEnabled) {
-                checkUpdateInterval = setInterval(() => {
-                    if (currentFile && !currentFile.hasChanges) {
-                        checkFileUpdates();
-                    }
-                }, 1000);
-            }
+            document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
+            document.getElementById('runBtn').addEventListener('click', runCode);
+            document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
             
-            // 新增逻辑：只有当实时同步或自动刷新开启时，才启用文件列表查询
-            if (realtimeSyncEnabled || autoRefreshEnabled) {
-                checkFileListInterval = setInterval(() => {
-                    if (currentProject) {
-                        loadProjectFiles();
-                    }
-                }, 2000);
-            } else {
-                // 当两者都关闭时，确保定时器被清除
-                clearInterval(checkFileListInterval);
-                checkFileListInterval = null;
-            }
-        }
-
-            // 同时在setupToggleListeners函数中确保切换开关时会更新文件列表查询状态
-            function setupToggleListeners() {
-                const realtimeSyncToggle = document.getElementById('realtimeSyncToggle');
-                const autoSaveToggle = document.getElementById('autoSaveToggle');
-                const autoRefreshToggle = document.getElementById('autoRefreshToggle');
-
-                // 初始化开关状态
-                realtimeSyncToggle.checked = realtimeSyncEnabled;
-                autoSaveToggle.checked = autoSaveEnabled;
-                autoRefreshToggle.checked = autoRefreshEnabled;
-
-                // 实时同步模式开关事件
-                realtimeSyncToggle.addEventListener('change', function() {
-                    realtimeSyncEnabled = this.checked;
-                    
-                    // 如果开启实时同步，强制开启自动保存和自动刷新
-                    if (realtimeSyncEnabled) {
-                        autoSaveEnabled = true;
-                        autoRefreshEnabled = true;
-                        autoSaveToggle.checked = true;
-                        autoRefreshToggle.checked = true;
-                        autoSaveToggle.disabled = true;
-                        autoRefreshToggle.disabled = true;
-                    } else {
-                        autoSaveToggle.disabled = false;
-                        autoRefreshToggle.disabled = false;
-                    }
-                    
-                    // 更新定时器状态（包括文件列表查询）
-                    updateTimers();
-                });
-
-                // 自动保存开关事件
-                autoSaveToggle.addEventListener('change', function() {
-                    if (!realtimeSyncEnabled) {
-                        autoSaveEnabled = this.checked;
-                        updateTimers();
-                    }
-                });
-
-                // 自动刷新开关事件
-                autoRefreshToggle.addEventListener('change', function() {
-                    if (!realtimeSyncEnabled) {
-                        autoRefreshEnabled = this.checked;
-                        updateTimers();
-                    }
-                });
-            }
-
-        async function checkFileUpdates() {
-            try {
-                if (!currentFile || currentFile.hasChanges) return;
-
-                const { data: file, error } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('id', currentFile.id)
-                    .single();
-                
-                if (error) throw error;
-                
-                if (file.updated_at !== currentFile.updated_at) {
-                    if (file.last_updated_by !== currentUser.id) {
-                        applyRemoteChanges(file.content, file.last_updated_by);
-                    }
-                    
-                    currentFile.content = file.content;
-                    currentFile.updated_at = file.updated_at;
-                    currentFile.last_updated_by = file.last_updated_by;
-                    currentFile.hasChanges = false;
+            document.getElementById('shareBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择项目');
+                    return;
                 }
                 
-            } catch (err) {
-                console.error('检查文件更新错误:', err);
-            }
-        }
-
-        function applyRemoteChanges(content, lastUpdatedBy) {
-            if (!currentFile) return;
-            
-            isSyncing = true;
-            const cursor = editor.getCursor();
-            editor.setValue(content);
-            editor.setCursor(cursor);
-            updateLastEditorInfo(lastUpdatedBy);
-            isSyncing = false;
-        }
-
-        function updateLastEditorInfo(userId) {
-            const lastEditorInfo = document.getElementById('lastEditorInfo');
-            if (userId === currentUser.id) {
-                lastEditorInfo.textContent = `最后编辑者: ${currentUser.username}`;
-            } else {
-                const collaborator = collaborators.find(c => c.id === userId);
-                lastEditorInfo.textContent = collaborator ? 
-                    `最后编辑者: ${collaborator.username}` : 
-                    '最后编辑者: 未知用户';
-            }
-        }
-
-        function renderFileList() {
-            const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';
-            
-            files.forEach(file => {
-                const li = document.createElement('li');
-                li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-file"></i><span>${file.name}</span>`;
-                li.dataset.fileId = file.id;
-                li.addEventListener('click', () => selectFile(file.id));
-                fileList.appendChild(li);
+                const shareLink = `${window.location.origin}/code.html?project=${currentProject.id}`;
+                document.getElementById('shareLinkInput').value = shareLink;
+                document.getElementById('shareModal').classList.add('active');
             });
-        }
-
-        function selectFile(fileId) {
-            const file = files.find(f => f.id === fileId);
-            if (!file) return;
-
-            currentFile = file;
-            editor.setValue(file.content || '');
-            editor.setOption('mode', file.language || 'htmlmixed');
-            editor.clearHistory();
-            editor.refresh();
-            currentFile.hasChanges = false;
-
-            updateLastEditorInfo(file.last_updated_by);
+            
+            document.getElementById('copyLinkBtn').addEventListener('click', () => {
+                const shareInput = document.getElementById('shareLinkInput');
+                shareInput.select();
+                document.execCommand('copy');
+                alert('链接已复制到剪贴板');
+            });
+            
+            document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
+            
+            document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
+                const username = document.getElementById('collaboratorInput').value.trim();
+                
+                if (!username) {
+                    alert('请输入用户名');
+                    return;
+                }
+                
+                try {
+                    const { data: user, error: userError } = await client
+                        .from('users')
+                        .select('id')
+                        .eq('username', username)
+                        .single();
+                    
+                    if (userError || !user) {
+                        throw new Error('用户不存在');
+                    }
+                    
+                    const isAlreadyMember = collaborators.some(c => c.id === user.id);
+                    if (isAlreadyMember) {
+                        alert('该用户已经是项目成员');
+                        return;
+                    }
+                    
+                    const { error: memberError } = await client
+                        .from('project_members')
+                        .insert([{
+                            project_id: currentProject.id,
+                            user_id: user.id,
+                            role: 'editor'
+                        }]);
+                    
+                    if (memberError) throw memberError;
+                    
+                    collaborators.push({
+                        id: user.id,
+                        username
+                    });
+                    
+                    renderCollaborators();
+                    document.getElementById('collaboratorInput').value = '';
+                    alert(`已成功添加 ${username} 为协作者`);
+                    
+                } catch (err) {
+                    console.error('添加协作者错误:', err);
+                    alert('添加协作者失败: ' + err.message);
+                }
+            });
+            
+            document.getElementById('closeShareBtn').addEventListener('click', () => {
+                document.getElementById('shareModal').classList.remove('active');
+            });
+            
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                    }
+                });
+            });
         }
     </script>
 </body>
