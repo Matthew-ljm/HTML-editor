@@ -1024,7 +1024,6 @@
                 updateSubSwitchDisabledState();
                 saveSwitchStates();
                 updateGlobalVariables();
-                adjustTimers();
             });
 
             // 开关2变化事件
@@ -1032,7 +1031,6 @@
                 checkSubSwitches();
                 saveSwitchStates();
                 updateGlobalVariables();
-                adjustTimers();
             });
 
             // 开关3变化事件
@@ -1040,7 +1038,6 @@
                 checkSubSwitches();
                 saveSwitchStates();
                 updateGlobalVariables();
-                adjustTimers();
             });
 
             // 初始化开关状态
@@ -1259,9 +1256,7 @@
                 if (currentFile && !currentFile.hasChanges) {
                     if (refresh === 1) {
                         checkFileUpdates();
-                        console.log('检查文件更新完成');
                     }
-                    console.log('检查文件更新');
                 }
             }, 1000);
             
@@ -1290,19 +1285,14 @@
                 
                 if (error) throw error;
                 
-                if (file.updated_at !== currentFile.updated_at) {
-                    if (file.last_updated_by !== currentUser.id) {
-                        applyRemoteChanges(file.content, file.last_updated_by);
-                    }
-                    
-                    currentFile.content = file.content;
-                    currentFile.updated_at = file.updated_at;
-                    currentFile.last_updated_by = file.last_updated_by;
-                    currentFile.hasChanges = false;
-                    console.log('文件已更新:', file.name);
-                } else {
-                    console.log('文件无更新');
+                if (file.last_updated_by !== currentUser.id) {
+                    applyRemoteChanges(file.content, file.last_updated_by);
                 }
+                currentFile.content = file.content;
+                currentFile.updated_at = file.updated_at;
+                currentFile.last_updated_by = file.last_updated_by;
+                currentFile.hasChanges = false;
+                console.log('文件已更新:', file.name);
                 
             } catch (err) {
                 console.error('检查文件更新错误:', err);
