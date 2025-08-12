@@ -832,7 +832,6 @@
                     return false;
                 } finally {
                     isConfigLoading = false;
-                    loading.classList.add('hidden2');
                 }
             })();
 
@@ -866,6 +865,23 @@
                 clearInterval(checkFileListInterval);
                 window.location.href = 'index.html';
             });
+            loading.classList.add('hidden2');
+        });
+
+        // 监听实时同步开关变化
+        document.getElementById('liveSync').addEventListener('change', (e) => {
+        live = e.target.checked ? 1 : 0; // 更新全局变量
+        // 可以在这里添加其他处理逻辑，如同步到服务器等
+        });
+
+        // 监听自动保存开关变化
+        document.getElementById('autoSave').addEventListener('change', (e) => {
+        save = e.target.checked ? 1 : 0;
+        });
+
+        // 监听自动刷新开关变化
+        document.getElementById('autoRefresh').addEventListener('change', (e) => {
+        refresh = e.target.checked ? 1 : 0;
         });
 
         function initEditor() {
