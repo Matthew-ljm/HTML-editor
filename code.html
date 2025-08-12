@@ -1293,7 +1293,7 @@
                     currentFile.last_updated_by = file.last_updated_by;
                     currentFile.hasChanges = false;
                     console.log(editor.getValue());
-                    editor.setValue(newContent);
+                    editor.setValue(file.content);
                     console.log('文件已更新:', currentFile.content);
                 }
                 
