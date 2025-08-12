@@ -432,9 +432,85 @@
         .hidden2 {
             display: none;
         }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 16px 0;
+        }
+        .switch-text {
+            margin-right: 16px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
+    <!-- 实时同步模式开关 -->
+    <div class="switch-container">
+        <div class="switch-text">实时同步模式</div>
+        <label class="switch">
+            <input type="checkbox" id="liveSync">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <!-- 自动保存开关 -->
+    <div class="switch-container">
+        <div class="switch-text">自动保存</div>
+        <label class="switch">
+            <input type="checkbox" id="autoSave">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <!-- 自动刷新开关 -->
+    <div class="switch-container">
+        <div class="switch-text">自动刷新</div>
+        <label class="switch">
+            <input type="checkbox" id="autoRefresh">
+            <span class="slider"></span>
+        </label>
+    </div>
+
     <div id="loadingIndicator" class="loading-indicator">
     <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载页面...
     </div>
@@ -693,6 +769,10 @@
         let checkUpdateInterval = null;
         let checkFileListInterval = null;
         let lastUpdateTime = null;
+        let lastFileListUpdateTime = null;
+        let live = 0; // 用于实时协作标志
+        let save = 0; // 用于自动保存标志
+        let refresh = 0; // 用于自动刷新标志
         
         // Supabase配置变量
         let supabaseUrl = null;
@@ -988,19 +1068,28 @@
         function setupTimers() {
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
-                    saveCurrentFile();
+                    if (save === 1) {
+                        saveCurrentFile();
+                    } else {
+                        currentFile.hasChanges = false;
+                    }
                 }
             }, 1000);
 
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
-                    checkFileUpdates();
+                    if (refresh === 1) {
+                        checkFileUpdates();
+                    }
                 }
             }, 1000);
             
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
-                    loadProjectFiles();
+                    // 如果live为1或refresh为1，则检查文件列表更新
+                    if (live === 1 || refresh === 1) {
+                        loadProjectFiles();
+                    }
                 }
             }, 2000);
         }
@@ -1401,6 +1490,21 @@
                 return '您有未保存的更改，确定离开吗？';
             }
         };
+        const liveSyncSwitch = document.getElementById('liveSync');
+        const autoSaveSwitch = document.getElementById('autoSave');
+        const autoRefreshSwitch = document.getElementById('autoRefresh');
+        
+        liveSyncSwitch.addEventListener('change', function() {
+            if (this.checked) {
+                autoSaveSwitch.checked = true;
+                autoRefreshSwitch.checked = true;
+                autoSaveSwitch.disabled = true;
+                autoRefreshSwitch.disabled = true;
+            } else {
+                autoSaveSwitch.disabled = false;
+                autoRefreshSwitch.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
