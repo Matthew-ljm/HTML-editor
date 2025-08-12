@@ -1152,6 +1152,19 @@
             }
         }
 
+        function renderCollaborators() {
+            const collaboratorsDiv = document.getElementById('collaborators');
+            collaboratorsDiv.innerHTML = '';
+            
+            collaborators.forEach(collaborator => {
+                const div = document.createElement('div');
+                div.className = 'collaborator';
+                div.textContent = collaborator.username;
+                div.title = `ID: ${collaborator.id}`;
+                collaboratorsDiv.appendChild(div);
+            });
+        }
+
         async function loadProjectFiles() {
             try {
                 if (!currentProject) return;
