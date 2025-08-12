@@ -888,11 +888,12 @@
             loading.classList.add('hidden2');
         });
 
+        // 开关相关逻辑实现
         document.addEventListener('DOMContentLoaded', () => {
             // 获取开关元素
-            const liveSyncSwitch = document.getElementById('liveSync'); // 开关1
-            const autoSaveSwitch = document.getElementById('autoSave');   // 开关2
-            const autoRefreshSwitch = document.getElementById('autoRefresh'); // 开关3
+            const liveSyncSwitch = document.getElementById('liveSync');
+            const autoSaveSwitch = document.getElementById('autoSave');
+            const autoRefreshSwitch = document.getElementById('autoRefresh');
 
             // 初始化开关状态（从本地存储加载）
             function initSwitchStates() {
@@ -907,6 +908,10 @@
                 
                 // 应用初始状态的交互限制
                 updateSubSwitchDisabledState();
+                // 初始化全局变量
+                updateGlobalVariables();
+                // 初始化定时器
+                adjustTimers();
             }
 
             // 保存开关状态到本地存储
@@ -930,41 +935,54 @@
                 });
             }
 
+            // 同步开关状态到全局变量
+            function updateGlobalVariables() {
+                live = liveSyncSwitch.checked ? 1 : 0;
+                save = autoSaveSwitch.checked ? 1 : 0;
+                refresh = autoRefreshSwitch.checked ? 1 : 0;
+            }
+
+            // 检查子开关状态控制主开关
+            function checkSubSwitches() {
+                // 当开关2和3都打开时，自动打开开关1
+                if (autoSaveSwitch.checked && autoRefreshSwitch.checked) {
+                    liveSyncSwitch.checked = true;
+                    updateSubSwitchDisabledState();
+                }
+            }
+
             // 开关1变化事件
             liveSyncSwitch.addEventListener('change', () => {
                 if (liveSyncSwitch.checked) {
-                    // 规则1: 开关1打开时，强制打开开关2和3
+                    // 开关1打开时，强制打开开关2和3
                     autoSaveSwitch.checked = true;
                     autoRefreshSwitch.checked = true;
                 } else {
-                    // 规则2: 开关1关闭时，强制关闭开关2和3
+                    // 开关1关闭时，强制关闭开关2和3
                     autoSaveSwitch.checked = false;
                     autoRefreshSwitch.checked = false;
                 }
                 updateSubSwitchDisabledState();
                 saveSwitchStates();
+                updateGlobalVariables();
+                adjustTimers();
             });
 
             // 开关2变化事件
             autoSaveSwitch.addEventListener('change', () => {
                 checkSubSwitches();
                 saveSwitchStates();
+                updateGlobalVariables();
+                adjustTimers();
             });
 
             // 开关3变化事件
             autoRefreshSwitch.addEventListener('change', () => {
                 checkSubSwitches();
                 saveSwitchStates();
+                updateGlobalVariables();
+                adjustTimers();
             });
-
-            // 检查子开关状态控制主开关
-            function checkSubSwitches() {
-                // 规则3: 当开关2和3都打开时，自动打开开关1
-                if (autoSaveSwitch.checked && autoRefreshSwitch.checked) {
-                    liveSyncSwitch.checked = true;
-                    updateSubSwitchDisabledState(); // 此时需要禁用子开关
-                }
-            }
 
             // 初始化开关状态
             initSwitchStates();
@@ -986,13 +1004,13 @@
                     'Ctrl-Space': 'autocomplete',
                     'Alt-Space': 'autocomplete',
                     'Ctrl-Enter': 'autocomplete',
-                    // 'Tab': function(cm) {
-                    //     if (cm.somethingSelected()) {
-                    //         cm.indentSelection('add');
-                    //     } else {
-                    //         cm.execCommand('indentMore');
-                    //     }
-                    // }
+                    'Tab': function(cm) {
+                        if (cm.somethingSelected()) {
+                            cm.indentSelection('add');
+                        } else {
+                            cm.execCommand('indentMore');
+                        }
+                    }
                 },
                 hintOptions: {
                     completeSingle: false,
