@@ -1256,6 +1256,7 @@
                 if (currentFile && !currentFile.hasChanges) {
                     if (refresh === 1) {
                         checkFileUpdates();
+                        currentFile.hasChanges = false;
                     }
                 }
             }, 1000);
