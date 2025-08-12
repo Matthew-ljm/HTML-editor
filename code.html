@@ -971,8 +971,6 @@
                 updateSubSwitchDisabledState();
                 // 初始化全局变量
                 updateGlobalVariables();
-                // 初始化定时器
-                adjustTimers();
             }
 
             // 保存开关状态到本地存储
@@ -1279,7 +1277,10 @@
 
         async function checkFileUpdates() {
             try {
-                if (!currentFile || currentFile.hasChanges) return;
+                if (!currentFile || currentFile.hasChanges){
+                    console.log('当前文件有未保存的更改，跳过检查更新');
+                    return;
+                }
 
                 const { data: file, error } = await client
                     .from('files')
@@ -1298,6 +1299,9 @@
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
                     currentFile.hasChanges = false;
+                    console.log('文件已更新:', file.name);
+                } else {
+                    console.log('文件无更新');
                 }
                 
             } catch (err) {
