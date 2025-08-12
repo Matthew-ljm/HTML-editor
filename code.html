@@ -649,6 +649,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
 
     <script>
+        const loading = document.getElementById('loadingIndicator');
+        loading.classList.remove('hidden');
         // 禁用控制台输出以增强安全性
         console.error = function() {};
         console.warn = function() {};
@@ -772,8 +774,6 @@
 
         // 获取Supabase配置
         async function getSupabaseConfig() {
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.remove('hidden');
             // 如果已经加载完成，直接返回
             if (supabaseUrl && supabaseKey) {
                 return true;
@@ -1113,6 +1113,69 @@
             });
         }
 
+        function setupEventListeners() {
+            document.getElementById('addProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.add('active');
+                document.getElementById('projectNameInput').value = '';
+                document.getElementById('projectDescInput').value = '';
+            });
+
+            document.getElementById('cancelProjectBtn').addEventListener('click', () => {
+                document.getElementById('newProjectModal').classList.remove('active');
+            });
+
+            document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
+                const name = document.getElementById('projectNameInput').value.trim();
+                const desc = document.getElementById('projectDescInput').value.trim();
+                
+                if (!name) {
+                    alert('项目名称不能为空');
+                    return;
+                }
+                
+                try {
+                    const { data: newProject, error } = await client
+                        .from('projects')
+                        .insert({
+                            name: name,
+                            description: desc,
+                            created_by: currentUser.id
+                        })
+                        .single();
+                    
+                    if (error) throw error;
+                    
+                    projects.push(newProject);
+                    renderProjectList();
+                    selectProject(newProject.id);
+                    
+                    document.getElementById('newProjectModal').classList.remove('active');
+                    
+                } catch (err) {
+                    console.error('创建项目错误:', err);
+                    alert('创建项目失败: ' + err.message);
+                }
+            });
+
+            document.getElementById('addFileBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择一个项目');
+                    return;
+                }
+                
+                document.getElementById('newFileModal').classList.add('active');
+                document.getElementById('fileNameInput').value = '';
+                document.getElementById('fileLanguageSelect').value = 'html';
+            });
+
+            document.getElementById('cancelFileBtn').addEventListener('click', () => {
+                document.getElementById('newFileModal').classList.remove('active');
+            });
+
+            document.getElementById('confirmFileBtn').addEventListener('click', async () => {
+                const fileName = document.getElementById('fileNameInput').value.trim();
+                const language = document.getElementById('fileLanguageSelect').value;
+
         async function selectProject(projectId) {
             try {
                 clearInterval(saveInterval);
@@ -1316,15 +1379,44 @@
         }
 
         function updateLastEditorInfo(userId) {
-            if (!userId) return;
-            
-            const collaborator = collaborators.find(c => c.id === userId);
-            if (collaborator) {
-                document.getElementById('lastEditor').textContent = `最后编辑: ${collaborator.username}`;
+            const lastEditorInfo = document.getElementById('lastEditorInfo');
+            if (userId === currentUser.id) {
+                lastEditorInfo.textContent = `最后编辑者: ${currentUser.username}`;
+            } else {
+                const collaborator = collaborators.find(c => c.id === userId);
+                lastEditorInfo.textContent = collaborator ? 
+                    `最后编辑者: ${collaborator.username}` : 
+                    '最后编辑者: 未知用户';
             }
         }
 
-        // 此处省略了原代码中未展示的剩余函数，保持原有逻辑不变
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
+                li.innerHTML = `<i class="fas fa-file"></i><span>${file.name}</span>`;
+                li.dataset.fileId = file.id;
+                li.addEventListener('click', () => selectFile(file.id));
+                fileList.appendChild(li);
+            });
+        }
+
+        function selectFile(fileId) {
+            const file = files.find(f => f.id === fileId);
+            if (!file) return;
+
+            currentFile = file;
+            editor.setValue(file.content || '');
+            editor.setOption('mode', file.language || 'htmlmixed');
+            editor.clearHistory();
+            editor.refresh();
+            currentFile.hasChanges = false;
+
+            updateLastEditorInfo(file.last_updated_by);
+        }
     </script>
 </body>
 </html>
