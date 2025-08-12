@@ -832,6 +832,8 @@
                     return false;
                 } finally {
                     isConfigLoading = false;
+                    // 将loadingIndicator2修改内容为“正在更新配置...”
+                    loading.textContent = '正在更新配置...';
                 }
             })();
 
@@ -865,6 +867,7 @@
                 clearInterval(checkFileListInterval);
                 window.location.href = 'index.html';
             });
+            const loading = document.getElementById('loadingIndicator2');
             loading.classList.add('hidden2');
         });
 
