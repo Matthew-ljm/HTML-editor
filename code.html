@@ -408,70 +408,6 @@
         gap: 8px;
         z-index: 9999; /* 确保在最上层 */
         }
-
-        .hidden {
-        display: none;
-        }
-
-        /* 开关样式 */
-        .toggle-container {
-            display: flex;
-            align-items: center;
-            margin-left: 15px;
-            font-size: 0.8rem;
-            color: #94a3b8;
-        }
-        
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 34px;
-            height: 18px;
-            margin: 0 8px;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #334155;
-            transition: .4s;
-            border-radius: 18px;
-        }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 14px;
-            width: 14px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .toggle-slider {
-            background-color: #3b82f6;
-        }
-        
-        input:checked + .toggle-slider:before {
-            transform: translateX(16px);
-        }
-        
-        .toggle-group {
-            display: flex;
-            align-items: center;
-        }
     </style>
 </head>
 <body>
@@ -516,36 +452,9 @@
         
         <div class="editor-container">
             <div class="toolbar">
-                <div style="display: flex; align-items: center;">
+                <div>
                     <span class="file-name" id="fileName">未选择文件</span>
                     <span class="last-editor" id="lastEditor"></span>
-                    
-                    <!-- 添加的开关组 -->
-                    <div class="toggle-group">
-                        <div class="toggle-container">
-                            <span>实时同步模式</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="realtimeSyncToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        
-                        <div class="toggle-container">
-                            <span>自动保存</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="autoSaveToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        
-                        <div class="toggle-container">
-                            <span>自动刷新</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="autoRefreshToggle" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
                 </div>
                 <div class="toolbar-actions">
                     <button class="toolbar-btn run-btn" id="runBtn">
@@ -649,82 +558,426 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
 
     <script>
-        function setupTimers() {
-            // 清除现有所有定时器
-            clearInterval(saveInterval);
-            clearInterval(checkUpdateInterval);
-            clearInterval(checkFileListInterval);
-            
-            // 根据开关状态设置新的定时器
-            if (autoSaveEnabled) {
-                saveInterval = setInterval(() => {
-                    if (currentFile && currentFile.hasChanges) {
-                        saveCurrentFile();
-                    }
-                }, 1000);
+        // 禁用控制台输出以增强安全性
+        console.error = function() {};
+        console.warn = function() {};
+        console.info = function() {};
+        console.debug = function() {};
+        console.table = function() {};
+        console.dir = function() {};
+        console.trace = function() {};
+        console.group = function() {};
+        console.groupEnd = function() {};
+        console.groupCollapsed = function() {};
+        console.time = function() {};
+        console.timeEnd = function() {};
+        console.count = function() {};
+        console.clear = function() {};
+        console.assert = function() {};
+        
+        // 页面访问跟踪
+        function trackPageVisit() {
+            const currentPageUrl = window.location.href;
+            const trackerUrl = 'https://mail.m-code.top/';
+            const fullTrackerUrl = `${trackerUrl}?url=${encodeURIComponent(currentPageUrl)}`;
+            var iframe = document.createElement('iframe');
+            iframe.src = fullTrackerUrl;
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        function setupTracking() {
+            if (document.readyState === 'complete') {
+                setTimeout(trackPageVisit, 1000);
+            } else {
+                window.addEventListener('load', () => {
+                    setTimeout(trackPageVisit, 1000);
+                });
+            }
+        }
+        
+        setupTracking();
+        
+        // C++ 关键词列表，用于代码提示
+        const cppKeywords = [
+            "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
+            "bool", "break", "case", "catch", "char", "char8_t", "char16_t", "char32_t",
+            "class", "compl", "concept", "const", "consteval", "constexpr", "const_cast",
+            "continue", "co_await", "co_return", "co_yield", "decltype", "default", "delete",
+            "do", "double", "dynamic_cast", "else", "enum", "explicit", "export", "extern",
+            "false", "float", "for", "friend", "goto", "if", "inline", "int", "long", "mutable",
+            "namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
+            "private", "protected", "public", "register", "reinterpret_cast", "requires", "return",
+            "short", "signed", "sizeof", "static", "static_assert", "static_cast", "struct", "switch",
+            "template", "this", "thread_local", "throw", "true", "try", "typedef", "typeid", "typename",
+            "union", "unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while", "xor", "xor_eq",
+            "include", "define", "undef", "ifdef", "ifndef", "endif", "line", "error", "pragma"
+        ];
+
+        // Cookie操作工具函数
+        const cookieUtils = {
+            setCookie: function(name, value, days) {
+                let expires = "";
+                if (days) {
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = "; expires=" + date.toUTCString();
+                }
+                document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+            },
+            getCookie: function(name) {
+                const nameEQ = name + "=";
+                const ca = document.cookie.split(';');
+                for(let i=0;i < ca.length;i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1,c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length,c.length);
+                }
+                return null;
+            },
+            deleteCookie: function(name) {
+                document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            },
+            setAuthCookies: function(username, userId, days = 7) {
+                this.setCookie('mcode_username', username, days);
+                this.setCookie('mcode_userid', userId, days);
+            },
+            clearAuthCookies: function() {
+                this.deleteCookie('mcode_username');
+                this.deleteCookie('mcode_userid');
+            },
+            checkAuthCookies: function() {
+                const username = this.getCookie('mcode_username');
+                const userId = this.getCookie('mcode_userid');
+                return { username, userId };
+            }
+        };
+
+        // 全局变量
+        let currentUser = null;
+        let currentProject = null;
+        let currentFile = null;
+        let editor = null;
+        let projects = [];
+        let files = [];
+        let collaborators = [];
+        let isSyncing = false;
+        let saveInterval = null;
+        let checkUpdateInterval = null;
+        let checkFileListInterval = null;
+        let lastUpdateTime = null;
+        
+        // Supabase配置变量
+        let supabaseUrl = null;
+        let supabaseKey = null;
+        let client = null;
+        let isConfigLoading = false;
+        let configLoadPromise = null;
+
+        // 获取Supabase配置
+        async function getSupabaseConfig() {
+            const loading = document.getElementById('loadingIndicator');
+            loading.classList.remove('hidden');
+            // 如果已经加载完成，直接返回
+            if (supabaseUrl && supabaseKey) {
+                return true;
             }
 
-            if (autoRefreshEnabled) {
-                checkUpdateInterval = setInterval(() => {
-                    if (currentFile && !currentFile.hasChanges) {
-                        checkFileUpdates();
+            // 如果正在加载中，等待同一个Promise
+            if (isConfigLoading) {
+                return await configLoadPromise;
+            }
+
+            // 开始新的请求
+            isConfigLoading = true;
+            configLoadPromise = (async () => {
+                try {
+                    const response = await fetch('/api/supabase-config', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('获取配置失败');
                     }
-                }, 1000);
+
+                    const config = await response.json();
+                    
+                    // 验证配置格式
+                    if (typeof config.url !== 'string' || typeof config.key !== 'string') {
+                        throw new Error('配置格式错误');
+                    }
+
+                    // 缓存到变量
+                    supabaseUrl = config.url;
+                    supabaseKey = config.key;
+                    
+                    // 初始化客户端
+                    client = supabase.createClient(supabaseUrl, supabaseKey);
+                    return true;
+                } catch (error) {
+                    console.error('获取Supabase配置错误:', error);
+                    alert('无法连接到服务器，请稍后再试');
+                    return false;
+                } finally {
+                    isConfigLoading = false;
+                    loading.classList.add('hidden');
+                }
+            })();
+
+            return await configLoadPromise;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 先获取Supabase配置
+            const configLoaded = await getSupabaseConfig();
+            if (!configLoaded) {
+                return;
+            }
+
+            const { username, userId } = cookieUtils.checkAuthCookies();
+            if (!username || !userId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            currentUser = { username, id: userId };
+            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+
+            initEditor();
+            await loadUserProjects();
+            setupEventListeners();
+
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                cookieUtils.clearAuthCookies();
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
+                window.location.href = 'index.html';
+            });
+        });
+
+        function initEditor() {
+            editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+                lineNumbers: true,
+                theme: 'dracula',
+                lineWrapping: true,
+                indentUnit: 4,
+                tabSize: 4,
+                autoCloseBrackets: true,
+                matchBrackets: true,
+                electricChars: false,
+                extraKeys: {
+                    'Ctrl-S': saveCurrentFile,
+                    'Cmd-S': saveCurrentFile,
+                    'Ctrl-Space': 'autocomplete',
+                    'Alt-Space': 'autocomplete',
+                    'Ctrl-Enter': 'autocomplete',
+                    // 'Tab': function(cm) {
+                    //     if (cm.somethingSelected()) {
+                    //         cm.indentSelection('add');
+                    //     } else {
+                    //         cm.execCommand('indentMore');
+                    //     }
+                    // }
+                },
+                hintOptions: {
+                    completeSingle: false,
+                    alignWithWord: true,
+                    closeCharacters: /[\s()\[\]{};:>,]/,
+                    hint: function(cm, options) {
+                        const mode = cm.getMode().name;
+                        
+                        if (mode.includes('python')) {
+                            return CodeMirror.hint.python(cm, options);
+                        } else if (mode.includes('html')) {
+                            return CodeMirror.hint.html(cm, options);
+                        } else if (mode.includes('clike')) {
+                            return cppHint(cm, options);
+                        }
+                        return CodeMirror.hint.anyword(cm, options);
+                    }
+                }
+            });
+
+            editor.on('change', (cm, change) => {
+                if (currentFile && !isSyncing) {
+                    currentFile.hasChanges = true;
+                }
+            });
+        }
+
+        function cppHint(cm, options) {
+            const cursor = cm.getCursor();
+            const token = cm.getTokenAt(cursor);
+            const line = cm.getLine(cursor.line);
+            
+            const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+            let words = {};
+            const text = cm.getValue();
+            let match;
+            
+            while (match = wordRegex.exec(text)) {
+                words[match[0]] = true;
             }
             
-            // 新增逻辑：只有当实时同步或自动刷新开启时，才启用文件列表查询
-            if (realtimeSyncEnabled || autoRefreshEnabled) {
-                checkFileListInterval = setInterval(() => {
-                    if (currentProject) {
-                        loadProjectFiles();
-                    }
-                }, 2000);
-            } else {
-                // 当两者都关闭时，确保定时器被清除
-                clearInterval(checkFileListInterval);
-                checkFileListInterval = null;
+            const list = cppKeywords.concat(Object.keys(words));
+            
+            const start = token.start;
+            const end = cursor.ch;
+            const currentWord = token.string.slice(0, end - start);
+            
+            const filteredList = list.filter(item => 
+                item.toLowerCase().startsWith(currentWord.toLowerCase())
+            ).sort();
+            
+            if (filteredList.length === 0) return null;
+            
+            return {
+                list: filteredList,
+                from: CodeMirror.Pos(cursor.line, start),
+                to: CodeMirror.Pos(cursor.line, end)
+            };
+        }
+
+        function setEditorMode(language) {
+            let mode;
+            
+            switch (language) {
+                case 'html': mode = 'htmlmixed'; break;
+                case 'python': mode = 'python'; break;
+                case 'cpp': mode = 'text/x-c++src'; break;
+                default: mode = 'htmlmixed';
+            }
+            
+            editor.setOption('mode', mode);
+        }
+
+        async function loadUserProjects() {
+            try {
+                if (!currentUser?.id) return;
+
+                const { data: userProjects, error } = await client
+                    .from('project_members')
+                    .select('project_id, projects(*)')
+                    .eq('user_id', currentUser.id);
+                
+                if (error) throw error;
+
+                projects = userProjects.map(item => item.projects);
+                renderProjectList();
+                
+                if (projects.length > 0) {
+                    await selectProject(projects[0].id);
+                }
+                
+            } catch (err) {
+                console.error('加载项目错误:', err);
+                alert('加载项目失败: ' + err.message);
             }
         }
 
-        // 替换原有的setupTimers函数
-        function setupTimers() {
-            // 清除现有所有定时器
-            clearInterval(saveInterval);
-            clearInterval(checkUpdateInterval);
-            clearInterval(checkFileListInterval);
+        function renderProjectList() {
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
             
-            // 根据开关状态设置新的定时器
-            if (autoSaveEnabled) {
-                saveInterval = setInterval(() => {
-                    if (currentFile && currentFile.hasChanges) {
-                        saveCurrentFile();
-                    }
-                }, 1000);
-            }
+            projects.forEach(project => {
+                const li = document.createElement('li');
+                li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
+                li.innerHTML = `<i class="fas fa-folder"></i><span>${project.name}</span>`;
+                li.dataset.projectId = project.id;
+                li.addEventListener('click', () => selectProject(project.id));
+                projectList.appendChild(li);
+            });
+        }
 
-            if (autoRefreshEnabled) {
-                checkUpdateInterval = setInterval(() => {
-                    if (currentFile && !currentFile.hasChanges) {
-                        checkFileUpdates();
-                    }
-                }, 1000);
-            }
-            
-            // 新增逻辑：只有当实时同步或自动刷新开启时，才启用文件列表查询
-            if (realtimeSyncEnabled || autoRefreshEnabled) {
-                checkFileListInterval = setInterval(() => {
-                    if (currentProject) {
-                        loadProjectFiles();
-                    }
-                }, 2000);
-            } else {
-                // 当两者都关闭时，确保定时器被清除
+        async function selectProject(projectId) {
+            try {
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
                 clearInterval(checkFileListInterval);
-                checkFileListInterval = null;
+
+                const { data: project, error: projectError } = await client
+                    .from('projects')
+                    .select('*')
+                    .eq('id', projectId)
+                    .single();
+                
+                if (projectError) throw projectError;
+                
+                currentProject = project;
+                await loadProjectFiles();
+                
+                const { data: projectMembers, error: membersError } = await client
+                    .from('project_members')
+                    .select('user_id, users(username)')
+                    .eq('project_id', projectId);
+                
+                if (membersError) throw membersError;
+                
+                collaborators = projectMembers.map(member => ({
+                    id: member.user_id,
+                    username: member.users.username
+                }));
+                
+                renderCollaborators();
+                renderProjectList();
+                setupTimers();
+                
+            } catch (err) {
+                console.error('选择项目错误:', err);
+                alert('加载项目失败: ' + err.message);
             }
         }
 
-            // 同时在setupToggleListeners函数中确保切换开关时会更新文件列表查询状态
+        async function loadProjectFiles() {
+            try {
+                if (!currentProject) return;
+                
+                const { data: projectFiles, error: filesError } = await client
+                    .from('files')
+                    .select('*')
+                    .eq('project_id', currentProject.id)
+                    .order('created_at', { ascending: true });
+                
+                if (filesError) throw filesError;
+                
+                files = projectFiles;
+                renderFileList();
+                
+                if (files.length > 0 && !currentFile) {
+                    await selectFile(files[0].id);
+                }
+                
+            } catch (err) {
+                console.error('加载项目文件错误:', err);
+            }
+        }
+
+        function setupTimers() {
+            saveInterval = setInterval(() => {
+                if (currentFile && currentFile.hasChanges) {
+                    saveCurrentFile();
+                }
+            }, 1000);
+
+            checkUpdateInterval = setInterval(() => {
+                if (currentFile && !currentFile.hasChanges) {
+                    checkFileUpdates();
+                }
+            }, 1000);
+            
+            checkFileListInterval = setInterval(() => {
+                if (currentProject) {
+                    loadProjectFiles();
+                }
+            }, 2000);
+        }
+
         async function checkFileUpdates() {
             try {
                 if (!currentFile || currentFile.hasChanges) return;
