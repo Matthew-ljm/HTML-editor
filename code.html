@@ -550,7 +550,7 @@
                 transform: translateX(-50%);
                 background-color: rgba(30, 41, 59, 0.9);
                 color: #e2e8f0;
-                padding: 10px 50px;
+                padding: 20px 10px;
                 border-radius: 5px;
                 font-size: 0.9rem;
                 z-index: 10000; /* 确保在最上层 */
@@ -1297,7 +1297,7 @@
                         loadProjectFiles();
                     }
                 }
-            }, 2000);
+            }, 10000);
         }
 
         async function checkFileUpdates() {
@@ -1321,10 +1321,8 @@
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
                     currentFile.hasChanges = false;
-                    console.log(editor.getValue());
                     editor.setValue(file.content);
                     editor.setCursor(editor.lineCount(), 0);
-                    console.log('文件已更新:', currentFile.content);
                 }
                 
             } catch (err) {
