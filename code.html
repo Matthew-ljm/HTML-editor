@@ -550,7 +550,7 @@
                 transform: translateX(-50%);
                 background-color: rgba(30, 41, 59, 0.9);
                 color: #e2e8f0;
-                padding: 10px 20px;
+                padding: 10px 30px;
                 border-radius: 5px;
                 font-size: 0.9rem;
                 z-index: 10000; /* 确保在最上层 */
@@ -1261,7 +1261,9 @@
                 if (currentFile && !currentFile.hasChanges) {
                     if (refresh === 1) {
                         checkFileUpdates();
+                        console.log('检查文件更新完成');
                     }
+                    console.log('检查文件更新');
                 }
             }, 1000);
             
