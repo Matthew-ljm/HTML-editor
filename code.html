@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code实时协作编辑器</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
     <style>
         * {
             margin: 0;
@@ -725,18 +725,22 @@
 
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <!-- 语言模式 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+    <!-- 插件 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/javascript-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/html-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/css-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/anyword-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/python-hint.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/hint/show-hint.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/selection/active-line.min.js"></script>
 
     <script>
         // 禁用控制台输出以增强安全性
@@ -1051,21 +1055,36 @@
                 lineWrapping: true,
                 indentUnit: 4,
                 tabSize: 4,
+                indentWithTabs: false, // 使用空格而不是制表符缩进
                 autoCloseBrackets: true,
                 matchBrackets: true,
-                electricChars: false,
+                electricChars: true,
+                mode: 'htmlmixed', // 默认模式设置为htmlmixed
+                // 修复缩进问题的关键配置
                 extraKeys: {
                     'Ctrl-S': saveCurrentFile,
                     'Cmd-S': saveCurrentFile,
                     'Ctrl-Space': 'autocomplete',
                     'Alt-Space': 'autocomplete',
                     'Ctrl-Enter': 'autocomplete',
-                    'Tab': function(cm) {
+                    'Enter': function(cm) {
+                        // 处理回车键，确保正确缩进
                         if (cm.somethingSelected()) {
-                            cm.indentSelection('add');
-                        } else {
-                            cm.execCommand('indentMore');
+                            return CodeMirror.Pass;
                         }
+                        cm.execCommand("newlineAndIndent");
+                    },
+                    'Tab': function(cm) {
+                        // 改进的Tab键处理
+                        if (cm.somethingSelected()) {
+                            cm.indentSelection("add");
+                        } else {
+                            const spaces = Array(cm.getOption("indentUnit") + 1).join(" ");
+                            cm.replaceSelection(spaces);
+                        }
+                    },
+                    'Shift-Tab': function(cm) {
+                        cm.indentSelection("subtract");
                     }
                 },
                 hintOptions: {
@@ -1084,7 +1103,17 @@
                         }
                         return CodeMirror.hint.anyword(cm, options);
                     }
-                }
+                },
+                // 添加gutters配置（可选）
+                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+                // 添加折叠功能（可选）
+                foldGutter: true,
+                // 自动高亮当前行
+                styleActiveLine: true,
+                // 自动聚焦
+                autofocus: true,
+                // 添加括号匹配高亮
+                highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
             });
 
             editor.on('change', (cm, change) => {
@@ -1294,6 +1323,7 @@
                     currentFile.hasChanges = false;
                     console.log(editor.getValue());
                     editor.setValue(file.content);
+                    editor.setCursor(editor.lineCount(), 0);
                     console.log('文件已更新:', currentFile.content);
                 }
                 
