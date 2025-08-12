@@ -408,10 +408,15 @@
         gap: 8px;
         z-index: 9999; /* 确保在最上层 */
         }
+
+        /* 注意：这里将类名修正为hidden（正确的拼写） */
+        .hidden {
+        display: none;
+        }
     </style>
 </head>
 <body>
-    <div id="loadingIndicator" class="loading-indicator hidden">
+    <div id="loadingIndicator" class="loading-indicator">
     <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载配置...
     </div>
     <header>
