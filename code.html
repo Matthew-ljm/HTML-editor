@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-Code协作编辑器</title>
+    <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
@@ -417,7 +418,7 @@
 </head>
 <body>
     <div id="loadingIndicator" class="loading-indicator">
-    <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载配置...
+    <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载页面...
     </div>
     <header>
         <div class="logo">
@@ -728,9 +729,6 @@
                     console.error('获取Supabase配置错误:', error);
                     alert('无法连接到服务器，请稍后再试');
                     return false;
-                } finally {
-                    isConfigLoading = false;
-                    loading.classList.add('hidden');
                 }
             })();
 
@@ -1370,6 +1368,15 @@
                 });
             });
         }
+        window.onload = function() {
+            isConfigLoading = false;
+            loading.classList.add('hidden');
+        };
+        window.onbeforeunload = function() {
+            if (currentFile && currentFile.hasChanges) {
+                return '您有未保存的更改，确定离开吗？';
+            }
+        };
     </script>
 </body>
 </html>
