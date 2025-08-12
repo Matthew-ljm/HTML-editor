@@ -433,26 +433,37 @@
             display: none;
         }
 
-        .switch-container {
+        .switches-container {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin: 16px 0;
+            gap: 15px; /* 开关之间的间距 */
+            margin-left: 20px; /* 左边距 */
         }
+
+        .switch-item {
+            display: flex;
+            align-items: center;
+            gap: 8px; /* 开关文本与开关之间的间距 */
+        }
+
         .switch-text {
-            margin-right: 16px;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
+
         .switch {
             position: relative;
             display: inline-block;
             width: 50px;
             height: 24px;
         }
+
         .switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .slider {
             position: absolute;
             cursor: pointer;
@@ -464,6 +475,7 @@
             transition: .4s;
             border-radius: 24px;
         }
+
         .slider:before {
             position: absolute;
             content: "";
@@ -475,42 +487,17 @@
             transition: .4s;
             border-radius: 50%;
         }
+
         input:checked + .slider {
             background-color: #3b82f6;
         }
+
         input:checked + .slider:before {
             transform: translateX(26px);
         }
     </style>
 </head>
 <body>
-    <!-- 实时同步模式开关 -->
-    <div class="switch-container">
-        <div class="switch-text">实时同步模式</div>
-        <label class="switch">
-            <input type="checkbox" id="liveSync">
-            <span class="slider"></span>
-        </label>
-    </div>
-    
-    <!-- 自动保存开关 -->
-    <div class="switch-container">
-        <div class="switch-text">自动保存</div>
-        <label class="switch">
-            <input type="checkbox" id="autoSave">
-            <span class="slider"></span>
-        </label>
-    </div>
-    
-    <!-- 自动刷新开关 -->
-    <div class="switch-container">
-        <div class="switch-text">自动刷新</div>
-        <label class="switch">
-            <input type="checkbox" id="autoRefresh">
-            <span class="slider"></span>
-        </label>
-    </div>
-
     <div id="loadingIndicator" class="loading-indicator">
     <i class="fa fa-circle-o-notch fa-spin"></i> 正在加载页面...
     </div>
@@ -555,10 +542,40 @@
         
         <div class="editor-container">
             <div class="toolbar">
-                <div>
-                    <span class="file-name" id="fileName">未选择文件</span>
-                    <span class="last-editor" id="lastEditor"></span>
+                <div style="display: flex; align-items: center; gap: 20px; flex: 1;">
+                    <div>
+                        <span class="file-name" id="fileName">未选择文件</span>
+                        <span class="last-editor" id="lastEditor"></span>
+                    </div>
+                    
+                    <!-- 开关容器 -->
+                    <div class="switches-container">
+                        <div class="switch-item">
+                            <div class="switch-text">实时同步模式</div>
+                            <label class="switch">
+                                <input type="checkbox" id="liveSync">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="switch-item">
+                            <div class="switch-text">自动保存</div>
+                            <label class="switch">
+                                <input type="checkbox" id="autoSave">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="switch-item">
+                            <div class="switch-text">自动刷新</div>
+                            <label class="switch">
+                                <input type="checkbox" id="autoRefresh">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
+                
                 <div class="toolbar-actions">
                     <button class="toolbar-btn run-btn" id="runBtn">
                         <i class="fas fa-play"></i> 运行
@@ -871,20 +888,86 @@
             loading.classList.add('hidden2');
         });
 
-        // 监听实时同步开关变化
-        document.getElementById('liveSync').addEventListener('change', (e) => {
-        live = e.target.checked ? 1 : 0; // 更新全局变量
-        // 可以在这里添加其他处理逻辑，如同步到服务器等
-        });
+        document.addEventListener('DOMContentLoaded', () => {
+            // 获取开关元素
+            const liveSyncSwitch = document.getElementById('liveSync'); // 开关1
+            const autoSaveSwitch = document.getElementById('autoSave');   // 开关2
+            const autoRefreshSwitch = document.getElementById('autoRefresh'); // 开关3
 
-        // 监听自动保存开关变化
-        document.getElementById('autoSave').addEventListener('change', (e) => {
-        save = e.target.checked ? 1 : 0;
-        });
+            // 初始化开关状态（从本地存储加载）
+            function initSwitchStates() {
+                const savedLive = localStorage.getItem('liveSyncState');
+                const savedSave = localStorage.getItem('autoSaveState');
+                const savedRefresh = localStorage.getItem('autoRefreshState');
+                
+                // 初始状态默认全关
+                liveSyncSwitch.checked = savedLive === 'true';
+                autoSaveSwitch.checked = savedSave === 'true';
+                autoRefreshSwitch.checked = savedRefresh === 'true';
+                
+                // 应用初始状态的交互限制
+                updateSubSwitchDisabledState();
+            }
 
-        // 监听自动刷新开关变化
-        document.getElementById('autoRefresh').addEventListener('change', (e) => {
-        refresh = e.target.checked ? 1 : 0;
+            // 保存开关状态到本地存储
+            function saveSwitchStates() {
+                localStorage.setItem('liveSyncState', liveSyncSwitch.checked);
+                localStorage.setItem('autoSaveState', autoSaveSwitch.checked);
+                localStorage.setItem('autoRefreshState', autoRefreshSwitch.checked);
+            }
+
+            // 更新子开关(2,3)的禁用状态
+            function updateSubSwitchDisabledState() {
+                // 当开关1打开时，禁用开关2和3（用户无法操作）
+                const isDisabled = liveSyncSwitch.checked;
+                autoSaveSwitch.disabled = isDisabled;
+                autoRefreshSwitch.disabled = isDisabled;
+                
+                // 视觉上区分禁用状态
+                const subSwitches = document.querySelectorAll('#autoSave + .slider, #autoRefresh + .slider');
+                subSwitches.forEach(slider => {
+                    slider.style.opacity = isDisabled ? '0.7' : '1';
+                });
+            }
+
+            // 开关1变化事件
+            liveSyncSwitch.addEventListener('change', () => {
+                if (liveSyncSwitch.checked) {
+                    // 规则1: 开关1打开时，强制打开开关2和3
+                    autoSaveSwitch.checked = true;
+                    autoRefreshSwitch.checked = true;
+                } else {
+                    // 规则2: 开关1关闭时，强制关闭开关2和3
+                    autoSaveSwitch.checked = false;
+                    autoRefreshSwitch.checked = false;
+                }
+                updateSubSwitchDisabledState();
+                saveSwitchStates();
+            });
+
+            // 开关2变化事件
+            autoSaveSwitch.addEventListener('change', () => {
+                checkSubSwitches();
+                saveSwitchStates();
+            });
+
+            // 开关3变化事件
+            autoRefreshSwitch.addEventListener('change', () => {
+                checkSubSwitches();
+                saveSwitchStates();
+            });
+
+            // 检查子开关状态控制主开关
+            function checkSubSwitches() {
+                // 规则3: 当开关2和3都打开时，自动打开开关1
+                if (autoSaveSwitch.checked && autoRefreshSwitch.checked) {
+                    liveSyncSwitch.checked = true;
+                    updateSubSwitchDisabledState(); // 此时需要禁用子开关
+                }
+            }
+
+            // 初始化开关状态
+            initSwitchStates();
         });
 
         function initEditor() {
@@ -1500,30 +1583,15 @@
                 });
             });
         }
-        window.onload = function() {
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.add('hidden');
-        };
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
                 return '您有未保存的更改，确定离开吗？';
             }
         };
-        const liveSyncSwitch = document.getElementById('liveSync');
-        const autoSaveSwitch = document.getElementById('autoSave');
-        const autoRefreshSwitch = document.getElementById('autoRefresh');
-        
-        liveSyncSwitch.addEventListener('change', function() {
-            if (this.checked) {
-                autoSaveSwitch.checked = true;
-                autoRefreshSwitch.checked = true;
-                autoSaveSwitch.disabled = true;
-                autoRefreshSwitch.disabled = true;
-            } else {
-                autoSaveSwitch.disabled = false;
-                autoRefreshSwitch.disabled = false;
-            }
-        });
+        window.onload = function() {
+            const loading = document.getElementById('loadingIndicator');
+            loading.classList.add('hidden');
+        };
     </script>
 </body>
 </html>
