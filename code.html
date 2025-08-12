@@ -437,7 +437,7 @@
             display: flex;
             align-items: center;
             gap: 20px; /* 开关之间的间距 */
-            margin-left: 10px; /* 左边距 */
+            margin-left: 5px; /* 左边距 */
         }
 
         .switch-item {
@@ -538,6 +538,22 @@
 
             .switch-item {
                 gap: 1px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            body::before {
+                content: "手机访问，横屏浏览更佳";
+                position: fixed;
+                top: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(30, 41, 59, 0.9);
+                color: #e2e8f0;
+                padding: 10px 20px;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                z-index: 10000; /* 确保在最上层 */
             }
         }
     </style>
