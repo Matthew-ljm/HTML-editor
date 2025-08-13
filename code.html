@@ -759,7 +759,7 @@
         console.count = function() {};
         console.clear = function() {};
         console.assert = function() {};
-        
+
         // 页面访问跟踪
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
@@ -780,9 +780,9 @@
                 });
             }
         }
-        
+
         setupTracking();
-        
+
         // C++ 关键词列表，用于代码提示
         const cppKeywords = [
             "alignas", "alignof", "and", "and_eq", "asm", "auto", "bitand", "bitor", 
@@ -855,7 +855,9 @@
         let live = 0; // 用于实时协作标志
         let save = 0; // 用于自动保存标志
         let refresh = 0; // 用于自动刷新标志
-        
+        let realtimeChannel = null; // 新增：Realtime频道
+        let isLocalEdit = false; // 新增：标记本地修改
+
         // Supabase配置变量
         let supabaseUrl = null;
         let supabaseKey = null;
@@ -941,12 +943,17 @@
             initEditor();
             await loadUserProjects();
             setupEventListeners();
+            setupAutoSave();
+            setupAutoRefresh();
 
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
                 clearInterval(checkFileListInterval);
+                if (realtimeChannel) {
+                    client.removeChannel(realtimeChannel); // 新增：清理Realtime频道
+                }
                 window.location.href = 'index.html';
             });
             const loading = document.getElementById('loadingIndicator2');
@@ -975,6 +982,9 @@
                 updateSubSwitchDisabledState();
                 // 初始化全局变量
                 updateGlobalVariables();
+                // 更新自动保存和刷新设置
+                setupAutoSave();
+                setupAutoRefresh();
             }
 
             // 保存开关状态到本地存储
@@ -1020,14 +1030,25 @@
                     // 开关1打开时，强制打开开关2和3
                     autoSaveSwitch.checked = true;
                     autoRefreshSwitch.checked = true;
+                    // 启动Realtime
+                    if (currentFile) {
+                        setupRealtimeListener();
+                    }
                 } else {
                     // 开关1关闭时，强制关闭开关2和3
                     autoSaveSwitch.checked = false;
                     autoRefreshSwitch.checked = false;
+                    // 关闭Realtime
+                    if (realtimeChannel) {
+                        client.removeChannel(realtimeChannel);
+                        realtimeChannel = null;
+                    }
                 }
                 updateSubSwitchDisabledState();
                 saveSwitchStates();
                 updateGlobalVariables();
+                setupAutoSave();
+                setupAutoRefresh();
             });
 
             // 开关2变化事件
@@ -1035,6 +1056,7 @@
                 checkSubSwitches();
                 saveSwitchStates();
                 updateGlobalVariables();
+                setupAutoSave();
             });
 
             // 开关3变化事件
@@ -1042,6 +1064,7 @@
                 checkSubSwitches();
                 saveSwitchStates();
                 updateGlobalVariables();
+                setupAutoRefresh();
             });
 
             // 初始化开关状态
@@ -1064,613 +1087,735 @@
                 extraKeys: {
                     'Ctrl-S': saveCurrentFile,
                     'Cmd-S': saveCurrentFile,
-                    'Ctrl-Space': 'autocomplete',
-                    'Alt-Space': 'autocomplete',
-                    'Ctrl-Enter': 'autocomplete',
-                    'Enter': function(cm) {
-                        // 处理回车键，确保正确缩进
-                        if (cm.somethingSelected()) {
-                            return CodeMirror.Pass;
-                        }
-                        cm.execCommand("newlineAndIndent");
-                    },
                     'Tab': function(cm) {
-                        // 改进的Tab键处理
-                        if (cm.somethingSelected()) {
-                            cm.indentSelection("add");
-                        } else {
-                            const spaces = Array(cm.getOption("indentUnit") + 1).join(" ");
-                            cm.replaceSelection(spaces);
-                        }
+                        const spaces = Array(cm.getOption("indentUnit") + 1).join(" ");
+                        cm.replaceSelection(spaces, "end", "+input");
                     },
-                    'Shift-Tab': function(cm) {
-                        cm.indentSelection("subtract");
+                    'Ctrl-Space': function(cm) {
+                        cm.showHint({hint: getHintForMode});
                     }
                 },
                 hintOptions: {
-                    completeSingle: false,
-                    alignWithWord: true,
-                    closeCharacters: /[\s()\[\]{};:>,]/,
-                    hint: function(cm, options) {
-                        const mode = cm.getMode().name;
-                        
-                        if (mode.includes('python')) {
-                            return CodeMirror.hint.python(cm, options);
-                        } else if (mode.includes('html')) {
-                            return CodeMirror.hint.html(cm, options);
-                        } else if (mode.includes('clike')) {
-                            return cppHint(cm, options);
-                        }
-                        return CodeMirror.hint.anyword(cm, options);
-                    }
-                },
-                // 添加gutters配置（可选）
-                gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-                // 添加折叠功能（可选）
-                foldGutter: true,
-                // 自动高亮当前行
-                styleActiveLine: true,
-                // 自动聚焦
-                autofocus: true,
-                // 添加括号匹配高亮
-                highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
+                    completeSingle: false
+                }
             });
 
-            editor.on('change', (cm, change) => {
-                if (currentFile && !isSyncing) {
-                    currentFile.hasChanges = true;
+            // 为编辑器添加代码提示支持
+            function getHintForMode(cm) {
+                const mode = cm.getMode().name;
+                switch(mode) {
+                    case 'javascript':
+                        return CodeMirror.hint.javascript(cm);
+                    case 'htmlmixed':
+                        return CodeMirror.hint.html(cm);
+                    case 'css':
+                        return CodeMirror.hint.css(cm);
+                    case 'python':
+                        return CodeMirror.hint.python(cm);
+                    case 'text/x-c++src':
+                        // 使用自定义的C++关键词提示
+                        return {
+                            list: cppKeywords,
+                            from: CodeMirror.Pos(cm.getCursor().line, cm.getCursor().ch - cm.getTokenAt(cm.getCursor()).string.length),
+                            to: cm.getCursor()
+                        };
+                    default:
+                        return CodeMirror.hint.anyword(cm);
+                }
+            }
+
+            // 编辑器内容变化时更新相关状态
+            editor.on('change', () => {
+                // 自动保存逻辑保持不变
+                if (save && currentFile) {
+                    // 重置自动保存计时器
+                    clearTimeout(saveInterval);
+                    saveInterval = setTimeout(saveCurrentFile, 3000);
                 }
             });
         }
 
-        function cppHint(cm, options) {
-            const cursor = cm.getCursor();
-            const token = cm.getTokenAt(cursor);
-            const line = cm.getLine(cursor.line);
-            
-            const wordRegex = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-            let words = {};
-            const text = cm.getValue();
-            let match;
-            
-            while (match = wordRegex.exec(text)) {
-                words[match[0]] = true;
+        // 新增：设置Realtime监听
+        function setupRealtimeListener() {
+            const liveSyncSwitch = document.getElementById('liveSync');
+            if (!liveSyncSwitch.checked) return;
+
+            // 退出之前的频道（如果存在）
+            if (realtimeChannel) {
+                client.removeChannel(realtimeChannel);
             }
-            
-            const list = cppKeywords.concat(Object.keys(words));
-            
-            const start = token.start;
-            const end = cursor.ch;
-            const currentWord = token.string.slice(0, end - start);
-            
-            const filteredList = list.filter(item => 
-                item.toLowerCase().startsWith(currentWord.toLowerCase())
-            ).sort();
-            
-            if (filteredList.length === 0) return null;
-            
-            return {
-                list: filteredList,
-                from: CodeMirror.Pos(cursor.line, start),
-                to: CodeMirror.Pos(cursor.line, end)
-            };
+
+            // 仅当有选中的项目和文件时才监听
+            if (currentProject && currentFile) {
+                // 创建频道（名称可自定义）
+                realtimeChannel = client.channel(`project:${currentProject.id}:file:${currentFile.id}`);
+
+                // 监听files表中当前文件的变化
+                realtimeChannel.on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "files",
+                        filter: `id=eq.${currentFile.id}` // 只监听当前文件
+                    },
+                    (payload) => {
+                        handleFileUpdate(payload.new); // 处理更新的数据
+                    }
+                ).subscribe();
+            }
         }
 
-        function setEditorMode(language) {
-            let mode;
-            
-            switch (language) {
-                case 'html': mode = 'htmlmixed'; break;
-                case 'python': mode = 'python'; break;
-                case 'cpp': mode = 'text/x-c++src'; break;
-                default: mode = 'htmlmixed';
+        // 新增：处理实时更新
+        function handleFileUpdate(updatedFile) {
+            // 如果是本地修改导致的更新，直接忽略
+            if (isLocalEdit) {
+                isLocalEdit = false;
+                return;
             }
-            
-            editor.setOption('mode', mode);
+
+            // 如果内容有变化，更新编辑器
+            if (updatedFile.content !== editor.getValue()) {
+                // 保存光标位置
+                const cursor = editor.getCursor();
+                // 更新内容
+                editor.setValue(updatedFile.content);
+                // 恢复光标位置
+                editor.setCursor(cursor);
+                // 更新最后编辑者信息
+                document.getElementById('lastEditor').textContent = `最后编辑: ${updatedFile.last_editor}`;
+                // 更新本地最后更新时间
+                lastUpdateTime = new Date(updatedFile.updated_at);
+            }
         }
 
         async function loadUserProjects() {
             try {
-                if (!currentUser?.id) return;
+                const { data, error } = await client
+                    .from('projects')
+                    .select('*')
+                    .eq('owner_id', currentUser.id)
+                    .or(`collaborators.cs.{"${currentUser.id}"}`);
 
-                const { data: userProjects, error } = await client
-                    .from('project_members')
-                    .select('project_id, projects(*)')
-                    .eq('user_id', currentUser.id);
-                
                 if (error) throw error;
 
-                projects = userProjects.map(item => item.projects);
+                projects = data || [];
                 renderProjectList();
-                
+
+                // 如果有项目，加载第一个项目的文件
                 if (projects.length > 0) {
-                    await selectProject(projects[0].id);
+                    const firstProjectId = localStorage.getItem('lastOpenedProject');
+                    const projectToLoad = firstProjectId 
+                        ? projects.find(p => p.id === firstProjectId) 
+                        : projects[0];
+                    
+                    if (projectToLoad) {
+                        await loadProjectFiles(projectToLoad.id);
+                    } else {
+                        await loadProjectFiles(projects[0].id);
+                    }
                 }
-                
-            } catch (err) {
-                console.error('加载项目错误:', err);
-                alert('加载项目失败: ' + err.message);
+            } catch (error) {
+                console.error('加载项目失败:', error);
+                alert('加载项目失败，请重试');
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
             }
         }
 
         function renderProjectList() {
-            const projectList = document.getElementById('projectList');
-            projectList.innerHTML = '';
-            
+            const projectListEl = document.getElementById('projectList');
+            projectListEl.innerHTML = '';
+
             projects.forEach(project => {
                 const li = document.createElement('li');
                 li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-folder"></i><span>${project.name}</span>`;
-                li.dataset.projectId = project.id;
-                li.addEventListener('click', () => selectProject(project.id));
-                projectList.appendChild(li);
+                li.innerHTML = `<i class="fas fa-folder"></i> ${project.name}`;
+                li.addEventListener('click', async () => {
+                    await loadProjectFiles(project.id);
+                });
+                projectListEl.appendChild(li);
             });
         }
 
-        async function selectProject(projectId) {
+        async function loadProjectFiles(projectId) {
             try {
-                clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
+                const project = projects.find(p => p.id === projectId);
+                if (!project) return;
 
-                const { data: project, error: projectError } = await client
-                    .from('projects')
-                    .select('*')
-                    .eq('id', projectId)
-                    .single();
-                
-                if (projectError) throw projectError;
-                
                 currentProject = project;
-                await loadProjectFiles();
+                localStorage.setItem('lastOpenedProject', projectId);
                 
-                const { data: projectMembers, error: membersError } = await client
-                    .from('project_members')
-                    .select('user_id, users(username)')
-                    .eq('project_id', projectId);
-                
-                if (membersError) throw membersError;
-                
-                collaborators = projectMembers.map(member => ({
-                    id: member.user_id,
-                    username: member.users.username
-                }));
-                
-                renderCollaborators();
-                renderProjectList();
-                setupTimers();
-                
-            } catch (err) {
-                console.error('选择项目错误:', err);
-                alert('加载项目失败: ' + err.message);
-            }
-        }
-
-        async function loadProjectFiles() {
-            try {
-                if (!currentProject) return;
-                
-                const { data: projectFiles, error: filesError } = await client
+                const { data, error } = await client
                     .from('files')
                     .select('*')
-                    .eq('project_id', currentProject.id)
-                    .order('created_at', { ascending: true });
-                
-                if (filesError) throw filesError;
-                
-                files = projectFiles;
-                renderFileList();
-                
-                if (files.length > 0 && !currentFile) {
-                    await selectFile(files[0].id);
-                }
-                
-            } catch (err) {
-                console.error('加载项目文件错误:', err);
-            }
-        }
+                    .eq('project_id', projectId)
+                    .order('updated_at', { ascending: false });
 
-        function setupTimers() {
-            saveInterval = setInterval(() => {
-                if (currentFile && currentFile.hasChanges) {
-                    if (save === 1) {
-                        saveCurrentFile();
-                    } else {
-                        currentFile.hasChanges = false;
-                    }
-                }
-            }, 1000);
-
-            checkUpdateInterval = setInterval(() => {
-                if (currentFile && !currentFile.hasChanges) {
-                    if (refresh === 1) {
-                        checkFileUpdates();
-                        currentFile.hasChanges = false;
-                    }
-                }
-            }, 2000);
-            
-            checkFileListInterval = setInterval(() => {
-                if (currentProject) {
-                    // 如果live为1或refresh为1，则检查文件列表更新
-                    if (live === 1 || refresh === 1) {
-                        loadProjectFiles();
-                    }
-                }
-            }, 10000);
-        }
-
-        async function checkFileUpdates() {
-            try {
-                if (!currentFile || currentFile.hasChanges) return;
-
-                const { data: file, error } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('id', currentFile.id)
-                    .single();
-                
                 if (error) throw error;
-                
-                if (file.updated_at !== currentFile.updated_at) {
-                    if (file.last_updated_by !== currentUser.id) {
-                        applyRemoteChanges(file.content, file.last_updated_by);
+
+                files = data || [];
+                renderFileList();
+                renderProjectList(); // 更新项目选中状态
+
+                // 加载最后打开的文件或第一个文件
+                const lastOpenedFileId = localStorage.getItem(`lastOpenedFile_${projectId}`);
+                if (lastOpenedFileId) {
+                    const fileToLoad = files.find(f => f.id === lastOpenedFileId);
+                    if (fileToLoad) {
+                        await loadFile(fileToLoad);
+                        return;
                     }
-                    
-                    currentFile.content = file.content;
-                    currentFile.updated_at = file.updated_at;
-                    currentFile.last_updated_by = file.last_updated_by;
-                    currentFile.hasChanges = false;
-                    editor.setValue(file.content);
-                    editor.setCursor(editor.lineCount(), 0);
                 }
-                
-            } catch (err) {
-                console.error('检查文件更新错误:', err);
-            }
-        }
 
-        function applyRemoteChanges(content, lastUpdatedBy) {
-            if (!currentFile) return;
-            
-            isSyncing = true;
-            const cursor = editor.getCursor();
-            editor.setValue(content);
-            editor.setCursor(cursor);
-            updateLastEditorInfo(lastUpdatedBy);
-            isSyncing = false;
-        }
-
-        function updateLastEditorInfo(userId) {
-            if (!userId) return;
-            
-            const collaborator = collaborators.find(c => c.id === userId);
-            if (collaborator) {
-                document.getElementById('lastEditor').textContent = `最后编辑: ${collaborator.username}`;
+                if (files.length > 0) {
+                    await loadFile(files[0]);
+                } else {
+                    // 没有文件时清空编辑器
+                    currentFile = null;
+                    editor.setValue('');
+                    document.getElementById('fileName').textContent = '未选择文件';
+                    document.getElementById('lastEditor').textContent = '';
+                    // 移除Realtime监听
+                    if (realtimeChannel) {
+                        client.removeChannel(realtimeChannel);
+                        realtimeChannel = null;
+                    }
+                }
+            } catch (error) {
+                console.error('加载项目文件失败:', error);
+                alert('加载文件失败，请重试');
             }
         }
 
         function renderFileList() {
-            const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';
-            
+            const fileListEl = document.getElementById('fileList');
+            fileListEl.innerHTML = '';
+
             files.forEach(file => {
                 const li = document.createElement('li');
                 li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-file-code"></i><span>${file.name}</span>`;
-                li.dataset.fileId = file.id;
-                li.addEventListener('click', () => selectFile(file.id));
-                fileList.appendChild(li);
+                
+                // 根据文件类型显示不同图标
+                let icon = 'fas fa-file-code';
+                if (file.name.endsWith('.html')) icon = 'fas fa-file-code';
+                else if (file.name.endsWith('.py')) icon = 'fas fa-file-code';
+                else if (file.name.endsWith('.cpp') || file.name.endsWith('.c')) icon = 'fas fa-file-code';
+                
+                li.innerHTML = `<i class="${icon}"></i> ${file.name}`;
+                li.addEventListener('click', async () => {
+                    await loadFile(file);
+                });
+                fileListEl.appendChild(li);
             });
         }
 
-        async function selectFile(fileId) {
+        async function loadFile(file) {
             try {
-                const file = files.find(f => f.id === fileId);
-                if (!file) return;
-                
                 currentFile = file;
-                isSyncing = true;
+                localStorage.setItem(`lastOpenedFile_${currentFile.project_id}`, file.id);
+                
+                // 更新编辑器内容
                 editor.setValue(file.content || '');
-                setEditorMode(file.language);
-                isSyncing = false;
                 document.getElementById('fileName').textContent = file.name;
-                updateLastEditorInfo(file.last_updated_by);
+                document.getElementById('lastEditor').textContent = file.last_editor 
+                    ? `最后编辑: ${file.last_editor}` 
+                    : '';
                 
-                document.querySelectorAll('.file-item').forEach(item => {
-                    item.classList.remove('active');
-                });
+                // 更新文件列表选中状态
+                renderFileList();
                 
-                const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
-                if (fileItem) fileItem.classList.add('active');
+                // 设置编辑器模式
+                setEditorMode(file.name);
                 
-            } catch (err) {
-                console.error('选择文件错误:', err);
-                alert('加载文件失败: ' + err.message);
+                // 记录最后更新时间
+                lastUpdateTime = new Date(file.updated_at);
+                
+                // 加载协作者
+                await loadCollaborators();
+                
+                // 如果启用了实时协作，设置监听
+                const liveSyncSwitch = document.getElementById('liveSync');
+                if (liveSyncSwitch.checked) {
+                    setupRealtimeListener();
+                }
+            } catch (error) {
+                console.error('加载文件失败:', error);
+                alert('加载文件内容失败，请重试');
+            }
+        }
+
+        function setEditorMode(fileName) {
+            if (fileName.endsWith('.html')) {
+                editor.setOption('mode', 'htmlmixed');
+            } else if (fileName.endsWith('.js')) {
+                editor.setOption('mode', 'javascript');
+            } else if (fileName.endsWith('.css')) {
+                editor.setOption('mode', 'css');
+            } else if (fileName.endsWith('.py')) {
+                editor.setOption('mode', 'python');
+            } else if (fileName.endsWith('.cpp') || fileName.endsWith('.c') || fileName.endsWith('.h')) {
+                editor.setOption('mode', 'text/x-c++src');
+            } else {
+                editor.setOption('mode', 'htmlmixed');
             }
         }
 
         async function saveCurrentFile() {
-            if (!currentFile || !currentFile.hasChanges) return;
-            
+            if (!currentFile || !editor) return;
+
+            const content = editor.getValue();
+            // 如果内容没有变化，不保存
+            if (content === currentFile.content) return;
+
             try {
-                const content = editor.getValue();
-                const now = new Date();
+                // 标记为本地修改
+                isLocalEdit = true;
                 
-                const { error } = await client
+                const { data, error } = await client
                     .from('files')
-                    .update({ 
-                        content: content,
-                        last_updated_by: currentUser.id,
-                        updated_at: now.toISOString()
+                    .update({
+                        content,
+                        last_editor: currentUser.username,
+                        updated_at: new Date()
                     })
-                    .eq('id', currentFile.id);
-                
+                    .eq('id', currentFile.id)
+                    .select();
+
                 if (error) throw error;
-                
-                await new Promise(resolve => setTimeout(resolve, 500));
 
-                currentFile.content = content;
-                currentFile.last_updated_by = currentUser.id;
-                currentFile.updated_at = now.toISOString();
-                currentFile.hasChanges = false;
-                updateLastEditorInfo(currentUser.id);
-                
-            } catch (err) {
-                console.error('保存文件错误:', err);
-                alert('保存文件失败: ' + err.message);
+                // 更新本地缓存的文件内容
+                if (data && data.length > 0) {
+                    currentFile = data[0];
+                    lastUpdateTime = new Date(currentFile.updated_at);
+                }
+
+                // 显示保存成功提示（可根据需要实现）
+            } catch (error) {
+                console.error('保存文件失败:', error);
+                alert('保存失败，请重试');
             }
         }
 
-        function runCode() {
-            if (!currentFile) {
-                alert('请先选择文件');
+        async function createNewProject(name, description = '') {
+            if (!name.trim()) {
+                alert('项目名称不能为空');
                 return;
             }
-            
-            const content = editor.getValue();
-            
-            switch(currentFile.language) {
-                case 'html':
-                    const htmlWindow = window.open('', '_blank');
-                    htmlWindow.document.open();
-                    htmlWindow.document.write(content);
-                    htmlWindow.document.close();
-                    break;
-                case 'python':
-                case 'cpp':
-                    alert('当前文件类型不支持运行');
-                    break;
-                default:
-                    alert('当前文件类型不支持直接运行');
+
+            try {
+                const { data, error } = await client
+                    .from('projects')
+                    .insert([
+                        { 
+                            name: name.trim(), 
+                            description: description.trim(),
+                            owner_id: currentUser.id,
+                            collaborators: []
+                        }
+                    ])
+                    .select();
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    projects.push(data[0]);
+                    renderProjectList();
+                    await loadProjectFiles(data[0].id);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('创建项目失败:', error);
+                alert('创建项目失败，请重试');
+                return false;
             }
         }
-        
-        function downloadCurrentFile() {
-            if (!currentFile) {
-                alert('请先选择文件');
+
+        async function createNewFile(name, language) {
+            if (!currentProject) {
+                alert('请先选择一个项目');
                 return;
             }
-            
-            const content = editor.getValue();
-            const fileName = currentFile.name;
-            const blob = new Blob([content], { type: 'text/plain' });
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(blob);
-            downloadLink.download = fileName;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            setTimeout(() => {
-                document.body.removeChild(downloadLink);
-                URL.revokeObjectURL(downloadLink.href);
-            }, 100);
+
+            if (!name.trim()) {
+                alert('文件名称不能为空');
+                return;
+            }
+
+            try {
+                // 确定初始内容
+                let initialContent = '';
+                if (language === 'html') {
+                    initialContent = '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Document</title>\n</head>\n<body>\n\n</body>\n</html>';
+                } else if (language === 'python') {
+                    initialContent = '#  Python 代码\nprint("Hello, World!")';
+                } else if (language === 'cpp') {
+                    initialContent = '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}';
+                }
+
+                const { data, error } = await client
+                    .from('files')
+                    .insert([
+                        { 
+                            name: name.trim(),
+                            content: initialContent,
+                            project_id: currentProject.id,
+                            owner_id: currentUser.id,
+                            last_editor: currentUser.username
+                        }
+                    ])
+                    .select();
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    files.push(data[0]);
+                    renderFileList();
+                    await loadFile(data[0]);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('创建文件失败:', error);
+                alert('创建文件失败，请重试');
+                return false;
+            }
+        }
+
+        async function loadCollaborators() {
+            if (!currentProject) return;
+
+            try {
+                // 获取协作者ID列表
+                const collaboratorIds = currentProject.collaborators || [];
+                // 加上所有者
+                if (!collaboratorIds.includes(currentProject.owner_id)) {
+                    collaboratorIds.push(currentProject.owner_id);
+                }
+
+                // 获取所有协作者信息
+                const { data, error } = await client
+                    .from('profiles')
+                    .select('id, username')
+                    .in('id', collaboratorIds);
+
+                if (error) throw error;
+
+                collaborators = data || [];
+                renderCollaborators();
+            } catch (error) {
+                console.error('加载协作者失败:', error);
+            }
         }
 
         function renderCollaborators() {
-            const collaboratorsContainer = document.getElementById('collaborators');
-            collaboratorsContainer.innerHTML = '';
-            
-            collaborators.forEach(collaborator => {
-                const div = document.createElement('div');
-                div.className = 'collaborator';
-                div.innerHTML = `
+            const collaboratorsEl = document.getElementById('collaborators');
+            collaboratorsEl.innerHTML = '';
+
+            collaborators.forEach(user => {
+                const isCurrentUser = user.id === currentUser.id;
+                const collaboratorEl = document.createElement('div');
+                collaboratorEl.className = 'collaborator';
+                
+                collaboratorEl.innerHTML = `
                     <div class="collaborator-avatar">
-                        ${collaborator.username.charAt(0).toUpperCase()}
+                        ${user.username.charAt(0).toUpperCase()}
                         <div class="collaborator-active"></div>
                     </div>
-                    <div class="collaborator-name">${collaborator.username}</div>
+                    <div class="collaborator-name">${isCurrentUser ? '你' : user.username}</div>
                 `;
-                collaboratorsContainer.appendChild(div);
+                
+                collaboratorsEl.appendChild(collaboratorEl);
             });
         }
 
+        async function addCollaborator(username) {
+            if (!currentProject) return false;
+
+            try {
+                // 查找用户
+                const { data: userData, error: userError } = await client
+                    .from('profiles')
+                    .select('id')
+                    .eq('username', username)
+                    .single();
+
+                if (userError) throw userError;
+
+                const userId = userData.id;
+                
+                // 检查是否已经是协作者
+                const collaborators = currentProject.collaborators || [];
+                if (collaborators.includes(userId) || currentProject.owner_id === userId) {
+                    alert('该用户已经是协作者');
+                    return false;
+                }
+
+                // 添加协作者
+                const updatedCollaborators = [...collaborators, userId];
+                const { error } = await client
+                    .from('projects')
+                    .update({ collaborators: updatedCollaborators })
+                    .eq('id', currentProject.id);
+
+                if (error) throw error;
+
+                // 更新本地缓存
+                currentProject.collaborators = updatedCollaborators;
+                await loadCollaborators();
+                return true;
+            } catch (error) {
+                console.error('添加协作者失败:', error);
+                alert('添加协作者失败，可能用户不存在');
+                return false;
+            }
+        }
+
+        function generateShareLink() {
+            if (!currentProject) return '';
+            return `${window.location.origin}/share.html?project=${currentProject.id}`;
+        }
+
+        function setupAutoSave() {
+            clearInterval(saveInterval);
+            if (save) {
+                // 自动保存间隔设为3秒
+                saveInterval = null; // 由编辑器change事件触发延迟保存
+            }
+        }
+
+        function setupAutoRefresh() {
+            clearInterval(checkUpdateInterval);
+            if (refresh && !document.getElementById('liveSync').checked) {
+                // 自动刷新间隔设为5秒
+                checkUpdateInterval = setInterval(async () => {
+                    await checkForUpdates();
+                }, 5000);
+            }
+        }
+
+        async function checkForUpdates() {
+            if (!currentFile) return;
+
+            try {
+                const { data, error } = await client
+                    .from('files')
+                    .select('content, updated_at, last_editor')
+                    .eq('id', currentFile.id)
+                    .single();
+
+                if (error) throw error;
+
+                const serverUpdateTime = new Date(data.updated_at);
+                // 检查是否有更新
+                if (!lastUpdateTime || serverUpdateTime > lastUpdateTime) {
+                    // 内容有变化才更新
+                    if (data.content !== editor.getValue()) {
+                        const cursor = editor.getCursor();
+                        editor.setValue(data.content);
+                        editor.setCursor(cursor);
+                        document.getElementById('lastEditor').textContent = `最后编辑: ${data.last_editor}`;
+                        lastUpdateTime = serverUpdateTime;
+                    }
+                }
+            } catch (error) {
+                console.error('检查更新失败:', error);
+            }
+        }
+
         function setupEventListeners() {
+            // 新建项目按钮
             document.getElementById('addProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.add('active');
                 document.getElementById('projectNameInput').focus();
             });
-            
+
+            // 取消新建项目
             document.getElementById('cancelProjectBtn').addEventListener('click', () => {
                 document.getElementById('newProjectModal').classList.remove('active');
+                document.getElementById('projectNameInput').value = '';
+                document.getElementById('projectDescInput').value = '';
             });
-            
+
+            // 确认新建项目
             document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
-                const name = document.getElementById('projectNameInput').value.trim();
-                const description = document.getElementById('projectDescInput').value.trim();
-                
-                if (!name) {
-                    alert('请输入项目名称');
-                    return;
-                }
-                
-                try {
-                    const { data: project, error } = await client
-                        .from('projects')
-                        .insert([{ 
-                            name,
-                            description,
-                            created_by: currentUser.id
-                        }])
-                        .select()
-                        .single();
-                    
-                    if (error) throw error;
-                    
-                    await client
-                        .from('project_members')
-                        .insert([{
-                            project_id: project.id,
-                            user_id: currentUser.id,
-                            role: 'owner'
-                        }]);
-                    
+                const name = document.getElementById('projectNameInput').value;
+                const description = document.getElementById('projectDescInput').value;
+                const success = await createNewProject(name, description);
+                if (success) {
                     document.getElementById('newProjectModal').classList.remove('active');
                     document.getElementById('projectNameInput').value = '';
                     document.getElementById('projectDescInput').value = '';
-                    await loadUserProjects();
-                    
-                } catch (err) {
-                    console.error('创建项目错误:', err);
-                    alert('创建项目失败: ' + err.message);
                 }
             });
-            
+
+            // 新建文件按钮
             document.getElementById('addFileBtn').addEventListener('click', () => {
                 if (!currentProject) {
-                    alert('请先选择项目');
+                    alert('请先选择一个项目');
                     return;
                 }
-                
                 document.getElementById('newFileModal').classList.add('active');
                 document.getElementById('fileNameInput').focus();
             });
-            
+
+            // 取消新建文件
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
                 document.getElementById('newFileModal').classList.remove('active');
+                document.getElementById('fileNameInput').value = '';
             });
-            
+
+            // 确认新建文件
             document.getElementById('confirmFileBtn').addEventListener('click', async () => {
-                const name = document.getElementById('fileNameInput').value.trim();
+                const name = document.getElementById('fileNameInput').value;
                 const language = document.getElementById('fileLanguageSelect').value;
-                
-                if (!name) {
-                    alert('请输入文件名称');
-                    return;
-                }
-                
-                try {
-                    const { data: file, error } = await client
-                        .from('files')
-                        .insert([{ 
-                            name,
-                            language,
-                            content: '',
-                            project_id: currentProject.id,
-                            created_by: currentUser.id,
-                            last_updated_by: currentUser.id
-                        }])
-                        .select()
-                        .single();
-                    
-                    if (error) throw error;
-                    
+                const success = await createNewFile(name, language);
+                if (success) {
                     document.getElementById('newFileModal').classList.remove('active');
                     document.getElementById('fileNameInput').value = '';
-                    await selectProject(currentProject.id);
-                    await selectFile(file.id);
-                    
-                } catch (err) {
-                    console.error('创建文件错误:', err);
-                    alert('创建文件失败: ' + err.message);
                 }
             });
-            
+
+            // 保存按钮
             document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
-            document.getElementById('runBtn').addEventListener('click', runCode);
-            document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
-            
-            document.getElementById('shareBtn').addEventListener('click', () => {
-                if (!currentProject) {
-                    alert('请先选择项目');
+
+            // 运行按钮
+            document.getElementById('runBtn').addEventListener('click', () => {
+                if (!currentFile) {
+                    alert('请先选择一个文件');
                     return;
                 }
                 
-                const shareLink = `${window.location.origin}/code.html?project=${currentProject.id}`;
+                const content = editor.getValue();
+                // 根据文件类型处理运行逻辑
+                if (currentFile.name.endsWith('.html')) {
+                    // HTML在新窗口运行
+                    const newWindow = window.open('', '_blank');
+                    newWindow.document.write(content);
+                    newWindow.document.close();
+                } else if (currentFile.name.endsWith('.py')) {
+                    // Python运行提示
+                    alert('Python代码运行功能即将上线，敬请期待！');
+                } else if (currentFile.name.endsWith('.cpp') || currentFile.name.endsWith('.c')) {
+                    // C++运行提示
+                    alert('C++代码运行功能即将上线，敬请期待！');
+                } else {
+                    alert('暂不支持该类型文件的运行');
+                }
+            });
+
+            // 下载按钮
+            document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
+
+            // 分享按钮
+            document.getElementById('shareBtn').addEventListener('click', () => {
+                if (!currentProject) {
+                    alert('请先选择一个项目');
+                    return;
+                }
+                const shareLink = generateShareLink();
                 document.getElementById('shareLinkInput').value = shareLink;
                 document.getElementById('shareModal').classList.add('active');
             });
-            
-            document.getElementById('copyLinkBtn').addEventListener('click', () => {
-                const shareInput = document.getElementById('shareLinkInput');
-                shareInput.select();
-                document.execCommand('copy');
-                alert('链接已复制到剪贴板');
+
+            // 关闭分享模态框
+            document.getElementById('closeShareBtn').addEventListener('click', () => {
+                document.getElementById('shareModal').classList.remove('active');
+                document.getElementById('collaboratorInput').value = '';
             });
-            
-            document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
-            
+
+            // 复制链接按钮
+            document.getElementById('copyLinkBtn').addEventListener('click', () => {
+                const input = document.getElementById('shareLinkInput');
+                input.select();
+                document.execCommand('copy');
+                alert('链接已复制');
+            });
+
+            // 添加协作者按钮
             document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
                 const username = document.getElementById('collaboratorInput').value.trim();
-                
                 if (!username) {
                     alert('请输入用户名');
                     return;
                 }
-                
-                try {
-                    const { data: user, error: userError } = await client
-                        .from('users')
-                        .select('id')
-                        .eq('username', username)
-                        .single();
-                    
-                    if (userError || !user) {
-                        throw new Error('用户不存在');
-                    }
-                    
-                    const isAlreadyMember = collaborators.some(c => c.id === user.id);
-                    if (isAlreadyMember) {
-                        alert('该用户已经是项目成员');
-                        return;
-                    }
-                    
-                    const { error: memberError } = await client
-                        .from('project_members')
-                        .insert([{
-                            project_id: currentProject.id,
-                            user_id: user.id,
-                            role: 'editor'
-                        }]);
-                    
-                    if (memberError) throw memberError;
-                    
-                    collaborators.push({
-                        id: user.id,
-                        username
-                    });
-                    
-                    renderCollaborators();
+                const success = await addCollaborator(username);
+                if (success) {
                     document.getElementById('collaboratorInput').value = '';
-                    alert(`已成功添加 ${username} 为协作者`);
-                    
-                } catch (err) {
-                    console.error('添加协作者错误:', err);
-                    alert('添加协作者失败: ' + err.message);
                 }
             });
-            
-            document.getElementById('closeShareBtn').addEventListener('click', () => {
-                document.getElementById('shareModal').classList.remove('active');
-            });
-            
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
+
+            // 下载文件按钮（分享模态框内）
+            document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
+
+            // 模态框外部点击关闭
+            window.addEventListener('click', (e) => {
+                const modals = document.querySelectorAll('.modal');
+                modals.forEach(modal => {
                     if (e.target === modal) {
                         modal.classList.remove('active');
+                        if (modal.id === 'newProjectModal') {
+                            document.getElementById('projectNameInput').value = '';
+                            document.getElementById('projectDescInput').value = '';
+                        } else if (modal.id === 'newFileModal') {
+                            document.getElementById('fileNameInput').value = '';
+                        } else if (modal.id === 'shareModal') {
+                            document.getElementById('collaboratorInput').value = '';
+                        }
                     }
                 });
             });
+
+            // 键盘事件 - ESC关闭模态框
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const modals = document.querySelectorAll('.modal.active');
+                    modals.forEach(modal => {
+                        modal.classList.remove('active');
+                        if (modal.id === 'newProjectModal') {
+                            document.getElementById('projectNameInput').value = '';
+                            document.getElementById('projectDescInput').value = '';
+                        } else if (modal.id === 'newFileModal') {
+                            document.getElementById('fileNameInput').value = '';
+                        } else if (modal.id === 'shareModal') {
+                            document.getElementById('collaboratorInput').value = '';
+                        }
+                    });
+                }
+            });
+
+            // 项目列表点击事件已在renderProjectList中绑定
+            // 文件列表点击事件已在renderFileList中绑定
         }
+
+        function downloadCurrentFile() {
+            if (!currentFile) {
+                alert('请先选择一个文件');
+                return;
+            }
+
+            const content = editor.getValue();
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFile.name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 页面关闭时清理
+        window.addEventListener('beforeunload', () => {
+            if (realtimeChannel) {
+                client.removeChannel(realtimeChannel);
+            }
+            clearInterval(saveInterval);
+            clearInterval(checkUpdateInterval);
+            clearInterval(checkFileListInterval);
+        });
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
                 return '您有未保存的更改，确定离开吗？';
