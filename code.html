@@ -1385,9 +1385,31 @@
             files.forEach(file => {
                 const li = document.createElement('li');
                 li.className = `file-item ${currentFile?.id === file.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-file-code"></i><span>${file.name}</span>`;
+                li.innerHTML = `
+                    <i class="fas fa-file-code"></i>
+                    <span>${file.name}</span>
+                    <button class="delete-btn" data-id="${file.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
                 li.dataset.fileId = file.id;
-                li.addEventListener('click', () => selectFile(file.id));
+                
+                // 修改点击事件，防止点击删除按钮时触发文件选择
+                li.addEventListener('click', (e) => {
+                    if (!e.target.closest('.delete-btn')) {
+                        selectFile(file.id);
+                    }
+                });
+                
+                // 为删除按钮添加事件
+                const deleteBtn = li.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    currentDeleteItemId = file.id;
+                    deleteFileName.textContent = file.name;
+                    document.getElementById('deleteFileModal').classList.add('active');
+                });
+                
                 fileList.appendChild(li);
             });
         }
@@ -1698,7 +1720,6 @@
                     }
                 });
             });
-            setupDeleteEventListeners();
         }
 
         // 初始化删除相关的DOM元素
@@ -1757,44 +1778,39 @@
             });
         }
 
-        // 修改渲染文件列表的函数，添加删除图标
-        function renderFiles() {
-            const fileList = document.getElementById('fileList');
-            fileList.innerHTML = '';
+        function renderProjectList() {
+            const projectList = document.getElementById('projectList');
+            projectList.innerHTML = '';
             
-            files.forEach(file => {
+            projects.forEach(project => {
                 const li = document.createElement('li');
-                li.className = `file-item ${currentFile && currentFile.id === file.id ? 'active' : ''}`;
+                li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
                 li.innerHTML = `
-                    <span>${file.name}</span>
-                    <button class="delete-btn" data-id="${file.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
+                    <i class="fas fa-folder"></i>
+                    <span>${project.name}</span>
+                    <button class="delete-btn" data-id="${project.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 `;
+                li.dataset.projectId = project.id;
                 
+                // 修改点击事件，防止点击删除按钮时触发项目选择
                 li.addEventListener('click', (e) => {
-                    // 防止点击删除按钮时触发文件选择
                     if (!e.target.closest('.delete-btn')) {
-                        selectFile(file);
+                        selectProject(project.id);
                     }
                 });
                 
-                fileList.appendChild(li);
-            });
-            
-            // 为所有文件删除按钮添加事件监听
-            document.querySelectorAll('.file-item .delete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
+                // 为删除按钮添加事件
+                const deleteBtn = li.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const fileId = e.currentTarget.getAttribute('data-id');
-                    const file = files.find(f => f.id === fileId);
-                    
-                    if (file) {
-                        currentDeleteItemId = fileId;
-                        deleteFileName.textContent = file.name;
-                        deleteFileModal.classList.add('active');
-                    }
+                    currentDeleteItemId = project.id;
+                    deleteProjectName.textContent = project.name;
+                    document.getElementById('deleteProjectModal').classList.add('active');
                 });
+                
+                projectList.appendChild(li);
             });
         }
 
@@ -1895,6 +1911,7 @@
                 currentDeleteItemId = null;
             });
         }
+        setupDeleteEventListeners();
 
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
