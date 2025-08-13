@@ -723,6 +723,33 @@
             </div>
         </div>
     </div>
+    
+    <div class="modal" id="deleteFileModal">
+        <div class="modal-content">
+            <h3 class="modal-title">删除文件</h3>
+            <p style="margin-bottom: 15px; color: #e2e8f0;">确定要删除文件 "<span id="deleteFileName"></span>" 吗？此操作不可恢复。</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelDeleteFileBtn">取消</button>
+                <button class="modal-btn modal-btn-confirm" style="background-color: #ef4444;" id="confirmDeleteFileBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除项目确认模态框 -->
+    <div class="modal" id="deleteProjectModal">
+        <div class="modal-content">
+            <h3 class="modal-title">删除项目</h3>
+            <p style="margin-bottom: 15px; color: #e2e8f0;">确定要删除项目 "<span id="deleteProjectName"></span>" 吗？此操作不可恢复。</p>
+            <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="deleteProjectFiles" checked>
+                <label for="deleteProjectFiles" style="color: #e2e8f0; font-size: 0.9rem;">同时删除项目中的所有文件</label>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelDeleteProjectBtn">取消</button>
+                <button class="modal-btn modal-btn-confirm" style="background-color: #ef4444;" id="confirmDeleteProjectBtn">删除</button>
+            </div>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
