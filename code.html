@@ -557,6 +557,26 @@
                 z-index: 10000; /* 确保在最上层 */
             }
         }
+
+        /* 删除图标样式 */
+        .delete-icon {
+            margin-left: auto;
+            color: #94a3b8;
+            padding: 2px;
+            border-radius: 3px;
+            transition: all 0.2s;
+            display: none;
+        }
+
+        .project-item:hover .delete-icon,
+        .file-item:hover .delete-icon {
+            display: block;
+        }
+
+        .delete-icon:hover {
+            color: #f87171;
+            background-color: rgba(248, 113, 113, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -1228,9 +1248,26 @@
             projects.forEach(project => {
                 const li = document.createElement('li');
                 li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `<i class="fas fa-folder"></i><span>${project.name}</span>`;
+                li.innerHTML = `
+                    <i class="fas fa-folder"></i>
+                    <span>${project.name}</span>
+                    <i class="fas fa-trash delete-icon" data-project-id="${project.id}"></i>
+                `;
                 li.dataset.projectId = project.id;
-                li.addEventListener('click', () => selectProject(project.id));
+                li.addEventListener('click', (e) => {
+                    // 只有当点击的不是删除图标时才选择项目
+                    if (!e.target.classList.contains('delete-icon')) {
+                        selectProject(project.id);
+                    }
+                });
+                
+                // 添加删除项目的事件监听
+                const deleteIcon = li.querySelector('.delete-icon');
+                deleteIcon.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showDeleteProjectModal(project);
+                });
+                
                 projectList.appendChild(li);
             });
         }
@@ -1388,26 +1425,21 @@
                 li.innerHTML = `
                     <i class="fas fa-file-code"></i>
                     <span>${file.name}</span>
-                    <button class="delete-btn" data-id="${file.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <i class="fas fa-trash delete-icon" data-file-id="${file.id}"></i>
                 `;
                 li.dataset.fileId = file.id;
-                
-                // 修改点击事件，防止点击删除按钮时触发文件选择
                 li.addEventListener('click', (e) => {
-                    if (!e.target.closest('.delete-btn')) {
+                    // 只有当点击的不是删除图标时才选择文件
+                    if (!e.target.classList.contains('delete-icon')) {
                         selectFile(file.id);
                     }
                 });
                 
-                // 为删除按钮添加事件
-                const deleteBtn = li.querySelector('.delete-btn');
-                deleteBtn.addEventListener('click', (e) => {
+                // 添加删除文件的事件监听
+                const deleteIcon = li.querySelector('.delete-icon');
+                deleteIcon.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    currentDeleteItemId = file.id;
-                    deleteFileName.textContent = file.name;
-                    document.getElementById('deleteFileModal').classList.add('active');
+                    showDeleteFileModal(file);
                 });
                 
                 fileList.appendChild(li);
@@ -1720,198 +1752,103 @@
                     }
                 });
             });
-        }
-
-        // 初始化删除相关的DOM元素
-        const deleteFileModal = document.getElementById('deleteFileModal');
-        const deleteFileName = document.getElementById('deleteFileName');
-        const cancelDeleteFileBtn = document.getElementById('cancelDeleteFileBtn');
-        const confirmDeleteFileBtn = document.getElementById('confirmDeleteFileBtn');
-
-        const deleteProjectModal = document.getElementById('deleteProjectModal');
-        const deleteProjectName = document.getElementById('deleteProjectName');
-        const deleteProjectFiles = document.getElementById('deleteProjectFiles');
-        const cancelDeleteProjectBtn = document.getElementById('cancelDeleteProjectBtn');
-        const confirmDeleteProjectBtn = document.getElementById('confirmDeleteProjectBtn');
-
-        // 存储当前要删除的项目或文件ID
-        let currentDeleteItemId = null;
-
-        // 修改渲染项目列表的函数，添加删除图标
-        function renderProjects() {
-            const projectList = document.getElementById('projectList');
-            projectList.innerHTML = '';
-            
-            projects.forEach(project => {
-                const li = document.createElement('li');
-                li.className = `project-item ${currentProject && currentProject.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `
-                    <span>${project.name}</span>
-                    <button class="delete-btn" data-id="${project.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                `;
-                
-                li.addEventListener('click', (e) => {
-                    // 防止点击删除按钮时触发项目选择
-                    if (!e.target.closest('.delete-btn')) {
-                        selectProject(project);
-                    }
-                });
-                
-                projectList.appendChild(li);
+            document.getElementById('cancelDeleteProjectBtn').addEventListener('click', () => {
+                document.getElementById('deleteProjectModal').classList.remove('active');
             });
             
-            // 为所有项目删除按钮添加事件监听
-            document.querySelectorAll('.project-item .delete-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const projectId = e.currentTarget.getAttribute('data-id');
-                    const project = projects.find(p => p.id === projectId);
+            // 删除文件模态框的取消按钮
+            document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
+                document.getElementById('deleteFileModal').classList.remove('active');
+            });
+        }
+
+        function showDeleteProjectModal(project) {
+            document.getElementById('deleteProjectName').textContent = project.name;
+            document.getElementById('deleteProjectModal').classList.add('active');
+            
+            // 设置确认按钮的事件监听
+            const confirmBtn = document.getElementById('confirmDeleteProjectBtn');
+            confirmBtn.onclick = async () => {
+                try {
+                    const deleteFiles = document.getElementById('deleteProjectFiles').checked;
                     
-                    if (project) {
-                        currentDeleteItemId = projectId;
-                        deleteProjectName.textContent = project.name;
-                        deleteProjectModal.classList.add('active');
-                    }
-                });
-            });
-        }
-
-        function renderProjectList() {
-            const projectList = document.getElementById('projectList');
-            projectList.innerHTML = '';
-            
-            projects.forEach(project => {
-                const li = document.createElement('li');
-                li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
-                li.innerHTML = `
-                    <i class="fas fa-folder"></i>
-                    <span>${project.name}</span>
-                    <button class="delete-btn" data-id="${project.id}" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer;">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                `;
-                li.dataset.projectId = project.id;
-                
-                // 修改点击事件，防止点击删除按钮时触发项目选择
-                li.addEventListener('click', (e) => {
-                    if (!e.target.closest('.delete-btn')) {
-                        selectProject(project.id);
-                    }
-                });
-                
-                // 为删除按钮添加事件
-                const deleteBtn = li.querySelector('.delete-btn');
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    currentDeleteItemId = project.id;
-                    deleteProjectName.textContent = project.name;
-                    document.getElementById('deleteProjectModal').classList.add('active');
-                });
-                
-                projectList.appendChild(li);
-            });
-        }
-
-        // 添加删除模态框的事件监听
-        function setupDeleteEventListeners() {
-            // 文件删除相关
-            cancelDeleteFileBtn.addEventListener('click', () => {
-                deleteFileModal.classList.remove('active');
-                currentDeleteItemId = null;
-            });
-            
-            confirmDeleteFileBtn.addEventListener('click', async () => {
-                if (currentDeleteItemId && currentProject) {
-                    try {
-                        // 调用Supabase API删除文件
-                        const { error } = await client
+                    if (deleteFiles) {
+                        // 先删除项目中的所有文件
+                        const { error: filesError } = await client
                             .from('files')
                             .delete()
-                            .eq('id', currentDeleteItemId)
-                            .eq('project_id', currentProject.id);
+                            .eq('project_id', project.id);
                         
-                        if (error) throw error;
-                        
-                        // 如果删除的是当前打开的文件，清空编辑器
-                        if (currentFile && currentFile.id === currentDeleteItemId) {
-                            currentFile = null;
-                            editor.setValue('');
-                            document.getElementById('fileName').textContent = '未选择文件';
-                            document.getElementById('lastEditor').textContent = '';
-                        }
-                        
-                        // 重新加载文件列表
-                        await loadProjectFiles(currentProject.id);
-                        
-                    } catch (error) {
-                        console.error('删除文件失败:', error);
-                        alert('删除文件失败: ' + error.message);
+                        if (filesError) throw filesError;
                     }
+                    
+                    // 删除项目成员关系
+                    const { error: membersError } = await client
+                        .from('project_members')
+                        .delete()
+                        .eq('project_id', project.id);
+                    
+                    if (membersError) throw membersError;
+                    
+                    // 最后删除项目本身
+                    const { error: projectError } = await client
+                        .from('projects')
+                        .delete()
+                        .eq('id', project.id);
+                    
+                    if (projectError) throw projectError;
+                    
+                    // 关闭模态框并刷新项目列表
+                    document.getElementById('deleteProjectModal').classList.remove('active');
+                    await loadUserProjects();
+                    
+                    // 重置当前项目和文件
+                    currentProject = null;
+                    currentFile = null;
+                    editor.setValue('');
+                    document.getElementById('fileName').textContent = '未选择文件';
+                    document.getElementById('lastEditor').textContent = '';
+                    
+                } catch (err) {
+                    console.error('删除项目错误:', err);
+                    alert('删除项目失败: ' + err.message);
                 }
-                
-                deleteFileModal.classList.remove('active');
-                currentDeleteItemId = null;
-            });
-            
-            // 项目删除相关
-            cancelDeleteProjectBtn.addEventListener('click', () => {
-                deleteProjectModal.classList.remove('active');
-                currentDeleteItemId = null;
-            });
-            
-            confirmDeleteProjectBtn.addEventListener('click', async () => {
-                if (currentDeleteItemId) {
-                    try {
-                        // 开启事务处理
-                        const deleteProjectFilesFlag = deleteProjectFiles.checked;
-                        
-                        // 如果需要删除项目文件
-                        if (deleteProjectFilesFlag) {
-                            // 先删除项目下的所有文件
-                            const { error: filesError } = await client
-                                .from('files')
-                                .delete()
-                                .eq('project_id', currentDeleteItemId);
-                            
-                            if (filesError) throw filesError;
-                        }
-                        
-                        // 再删除项目本身
-                        const { error: projectError } = await client
-                            .from('projects')
-                            .delete()
-                            .eq('id', currentDeleteItemId)
-                            .eq('user_id', currentUser.id);
-                        
-                        if (projectError) throw projectError;
-                        
-                        // 如果删除的是当前项目，重置状态
-                        if (currentProject && currentProject.id === currentDeleteItemId) {
-                            currentProject = null;
-                            currentFile = null;
-                            files = [];
-                            editor.setValue('');
-                            document.getElementById('fileName').textContent = '未选择文件';
-                            document.getElementById('lastEditor').textContent = '';
-                            renderFiles();
-                        }
-                        
-                        // 重新加载项目列表
-                        await loadUserProjects();
-                        
-                    } catch (error) {
-                        console.error('删除项目失败:', error);
-                        alert('删除项目失败: ' + error.message);
-                    }
-                }
-                
-                deleteProjectModal.classList.remove('active');
-                currentDeleteItemId = null;
-            });
+            };
         }
-        setupDeleteEventListeners();
+
+        function showDeleteFileModal(file) {
+            document.getElementById('deleteFileName').textContent = file.name;
+            document.getElementById('deleteFileModal').classList.add('active');
+            
+            // 设置确认按钮的事件监听
+            const confirmBtn = document.getElementById('confirmDeleteFileBtn');
+            confirmBtn.onclick = async () => {
+                try {
+                    const { error } = await client
+                        .from('files')
+                        .delete()
+                        .eq('id', file.id);
+                    
+                    if (error) throw error;
+                    
+                    // 关闭模态框并刷新文件列表
+                    document.getElementById('deleteFileModal').classList.remove('active');
+                    await loadProjectFiles();
+                    
+                    // 如果删除的是当前打开的文件，重置编辑器
+                    if (currentFile && currentFile.id === file.id) {
+                        currentFile = null;
+                        editor.setValue('');
+                        document.getElementById('fileName').textContent = '未选择文件';
+                        document.getElementById('lastEditor').textContent = '';
+                    }
+                    
+                } catch (err) {
+                    console.error('删除文件错误:', err);
+                    alert('删除文件失败: ' + err.message);
+                }
+            };
+        }
 
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
