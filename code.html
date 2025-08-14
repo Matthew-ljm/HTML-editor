@@ -1635,7 +1635,7 @@
                 
                 if (error) throw error;
                 
-                if (file.updated_at !== currentFile.updated_at) {
+                if (file.updated_at !== currentFile.updated_at && file.last_updated_by !== currentUser.id) {
                     if (file.last_updated_by !== currentUser.id) {
                         applyRemoteChanges(file.content, file.last_updated_by);
                     }
