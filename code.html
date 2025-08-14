@@ -601,6 +601,40 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        .action-item {
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 5px;
+        }
+
+        .action-item:hover {
+            background-color: #334155;
+        }
+
+        .more-actions-btn {
+            margin-left: auto;
+            color: #94a3b8;
+            padding: 2px;
+            border-radius: 3px;
+            transition: all 0.2s;
+            display: none;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+
+        .project-item:hover .more-actions-btn,
+        .file-item:hover .more-actions-btn {
+            display: block;
+        }
+
+        .more-actions-btn:hover {
+            color: #3b82f6;
+        }
     </style>
 </head>
 <body>
@@ -784,13 +818,44 @@
         <div class="modal-content">
             <h3 class="modal-title">删除项目</h3>
             <p style="margin-bottom: 15px; color: #e2e8f0;">确定要删除项目 "<span id="deleteProjectName"></span>" 吗？此操作不可恢复。</p>
-            <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="deleteProjectFiles" checked>
-                <label for="deleteProjectFiles" style="color: #e2e8f0; font-size: 0.9rem;">同时删除项目中的所有文件</label>
-            </div>
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="cancelDeleteProjectBtn">取消</button>
                 <button class="modal-btn modal-btn-confirm" style="background-color: #ef4444;" id="confirmDeleteProjectBtn">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="fileActionsModal">
+        <div class="modal-content" style="width: 200px; padding: 10px;">
+            <div class="action-item" data-action="rename">
+                <i class="fas fa-pen"></i> 重命名
+            </div>
+            <div class="action-item" data-action="details">
+                <i class="fas fa-info-circle"></i> 详情
+            </div>
+            <div class="action-item" data-action="delete" style="color: #f87171;">
+                <i class="fas fa-trash"></i> 删除
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="fileDetailsModal">
+        <div class="modal-content">
+            <h3 class="modal-title">文件详情</h3>
+            <div id="fileDetailsContent" style="margin-bottom: 15px;"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="closeDetailsBtn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="renameFileModal">
+        <div class="modal-content">
+            <h3 class="modal-title">重命名文件</h3>
+            <input type="text" class="modal-input" id="newFileNameInput" placeholder="输入新文件名">
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="cancelRenameBtn">取消</button>
+                <button class="modal-btn modal-btn-confirm" id="confirmRenameBtn">确认</button>
             </div>
         </div>
     </div>
@@ -1286,21 +1351,21 @@
                 li.innerHTML = `
                     <i class="fas fa-folder"></i>
                     <span>${project.name}</span>
-                    <i class="fas fa-trash delete-icon" data-project-id="${project.id}"></i>
+                    <button class="more-actions-btn" data-project-id="${project.id}">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
                 `;
                 li.dataset.projectId = project.id;
                 li.addEventListener('click', (e) => {
-                    // 只有当点击的不是删除图标时才选择项目
-                    if (!e.target.classList.contains('delete-icon')) {
+                    if (!e.target.classList.contains('more-actions-btn')) {
                         selectProject(project.id);
                     }
                 });
                 
-                // 添加删除项目的事件监听
-                const deleteIcon = li.querySelector('.delete-icon');
-                deleteIcon.addEventListener('click', (e) => {
+                const moreBtn = li.querySelector('.more-actions-btn');
+                moreBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    showDeleteProjectModal(project);
+                    showProjectActionsMenu(project, e.target);
                 });
                 
                 projectList.appendChild(li);
@@ -1460,21 +1525,21 @@
                 li.innerHTML = `
                     <i class="fas fa-file-code"></i>
                     <span>${file.name}</span>
-                    <i class="fas fa-trash delete-icon" data-file-id="${file.id}"></i>
+                    <button class="more-actions-btn" data-file-id="${file.id}">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
                 `;
                 li.dataset.fileId = file.id;
                 li.addEventListener('click', (e) => {
-                    // 只有当点击的不是删除图标时才选择文件
-                    if (!e.target.classList.contains('delete-icon')) {
+                    if (!e.target.classList.contains('more-actions-btn')) {
                         selectFile(file.id);
                     }
                 });
                 
-                // 添加删除文件的事件监听
-                const deleteIcon = li.querySelector('.delete-icon');
-                deleteIcon.addEventListener('click', (e) => {
+                const moreBtn = li.querySelector('.more-actions-btn');
+                moreBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    showDeleteFileModal(file);
+                    showFileActionsMenu(file, e.target);
                 });
                 
                 fileList.appendChild(li);
@@ -1813,6 +1878,86 @@
             document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
                 document.getElementById('deleteFileModal').classList.remove('active');
             });
+
+            document.querySelectorAll('.action-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const action = e.currentTarget.dataset.action;
+                    document.getElementById('fileActionsModal').classList.remove('active');
+                    
+                    switch(action) {
+                        case 'rename':
+                            document.getElementById('newFileNameInput').value = currentActionFile.name;
+                            document.getElementById('renameFileModal').classList.add('active');
+                            document.getElementById('newFileNameInput').focus();
+                            break;
+                        case 'details':
+                            showFileDetails(currentActionFile);
+                            break;
+                        case 'delete':
+                            showDeleteFileModal(currentActionFile);
+                            break;
+                    }
+                });
+            });
+
+            document.getElementById('closeDetailsBtn').addEventListener('click', () => {
+                document.getElementById('fileDetailsModal').classList.remove('active');
+            });
+
+            document.getElementById('cancelRenameBtn').addEventListener('click', () => {
+                document.getElementById('renameFileModal').classList.remove('active');
+            });
+
+            document.getElementById('confirmRenameBtn').addEventListener('click', async function() {
+                const btn = this;
+                setButtonLoading(btn, true);
+                
+                const newName = document.getElementById('newFileNameInput').value.trim();
+                
+                if (!newName) {
+                    alert('请输入新文件名');
+                    setButtonLoading(btn, false);
+                    return;
+                }
+                
+                const success = await renameFile(currentActionFile.id, newName);
+                if (success) {
+                    document.getElementById('renameFileModal').classList.remove('active');
+                }
+                
+                setButtonLoading(btn, false);
+            });
+
+            function renderProjectList() {
+                const projectList = document.getElementById('projectList');
+                projectList.innerHTML = '';
+                
+                projects.forEach(project => {
+                    const li = document.createElement('li');
+                    li.className = `project-item ${currentProject?.id === project.id ? 'active' : ''}`;
+                    li.innerHTML = `
+                        <i class="fas fa-folder"></i>
+                        <span>${project.name}</span>
+                        <button class="more-actions-btn" data-project-id="${project.id}">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    `;
+                    li.dataset.projectId = project.id;
+                    li.addEventListener('click', (e) => {
+                        if (!e.target.classList.contains('more-actions-btn')) {
+                            selectProject(project.id);
+                        }
+                    });
+                    
+                    const moreBtn = li.querySelector('.more-actions-btn');
+                    moreBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showProjectActionsMenu(project, e.target);
+                    });
+                    
+                    projectList.appendChild(li);
+                });
+            }
         }
 
         async function showDeleteProjectModal(project) {
@@ -2031,6 +2176,92 @@
                     setButtonLoading(btn, false);
                 }
             };
+        }
+
+        let currentActionFile = null;
+
+        function showFileActionsMenu(file, button) {
+            currentActionFile = file;
+            const modal = document.getElementById('fileActionsModal');
+            
+            // 定位菜单在按钮附近
+            const rect = button.getBoundingClientRect();
+            modal.style.position = 'fixed';
+            modal.style.top = `${rect.bottom + window.scrollY}px`;
+            modal.style.left = `${rect.left + window.scrollX - 150}px`;
+            
+            modal.classList.add('active');
+        }
+
+        function showFileDetails(file) {
+            const modal = document.getElementById('fileDetailsModal');
+            const content = document.getElementById('fileDetailsContent');
+            
+            content.innerHTML = `
+                <p><strong>文件名:</strong> ${file.name}</p>
+                <p><strong>类型:</strong> ${file.language}</p>
+                <p><strong>创建时间:</strong> ${new Date(file.created_at).toLocaleString()}</p>
+                <p><strong>最后更新时间:</strong> ${file.updated_at ? new Date(file.updated_at).toLocaleString() : '未知'}</p>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        async function renameFile(fileId, newName) {
+            try {
+                const { error } = await client
+                    .from('files')
+                    .update({ name: newName })
+                    .eq('id', fileId);
+                
+                if (error) throw error;
+                
+                // 更新本地数据
+                const file = files.find(f => f.id === fileId);
+                if (file) {
+                    file.name = newName;
+                }
+                
+                // 如果当前正在编辑这个文件，更新文件名显示
+                if (currentFile && currentFile.id === fileId) {
+                    currentFile.name = newName;
+                    document.getElementById('fileName').textContent = newName;
+                }
+                
+                renderFileList();
+                return true;
+            } catch (err) {
+                console.error('重命名文件错误:', err);
+                alert('重命名文件失败: ' + err.message);
+                return false;
+            }
+        }
+
+        function showProjectActionsMenu(project, button) {
+            currentActionProject = project;
+            const modal = document.getElementById('projectActionsModal');
+            
+            // 定位菜单在按钮附近
+            const rect = button.getBoundingClientRect();
+            modal.style.position = 'fixed';
+            modal.style.top = `${rect.bottom + window.scrollY}px`;
+            modal.style.left = `${rect.left + window.scrollX - 150}px`;
+            
+            modal.classList.add('active');
+        }
+
+        function showProjectDetails(project) {
+            const modal = document.getElementById('projectDetailsModal');
+            const content = document.getElementById('projectDetailsContent');
+            
+            content.innerHTML = `
+                <p><strong>项目名称:</strong> ${project.name}</p>
+                <p><strong>描述:</strong> ${project.description || '无描述'}</p>
+                <p><strong>创建时间:</strong> ${new Date(project.created_at).toLocaleString()}</p>
+                <p><strong>文件数量:</strong> ${files.filter(f => f.project_id === project.id).length}</p>
+            `;
+            
+            modal.classList.add('active');
         }
 
         window.onbeforeunload = function() {
