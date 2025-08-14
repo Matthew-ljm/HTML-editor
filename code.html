@@ -1604,7 +1604,7 @@
                         currentFile.hasChanges = false;
                     }
                 }
-            }, 1000);
+            }, 2000);
 
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
@@ -1621,7 +1621,7 @@
                         loadProjectFiles();
                     }
                 }
-            }, 10000);
+            }, 60000);
         }
 
         async function checkFileUpdates() {
