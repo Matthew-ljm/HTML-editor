@@ -253,10 +253,10 @@
                 document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Lax`;
             },
             setAuthCookies: function(username, userId) {
-                // 设置永久Cookie（20年有效期）
-                const permanentExpiry = 1 * 24 * 60 * 60; // 20年的秒数
-                this.setCookie('mcode_username', username, permanentExpiry);
-                this.setCookie('mcode_userid', userId, permanentExpiry);
+                // 游客账户有效期1天（按提示文本修改）
+                const guestExpiry = 24 * 60 * 60; // 24小时的秒数
+                this.setCookie('mcode_username', username, guestExpiry);
+                this.setCookie('mcode_userid', userId, guestExpiry);
             }
         };
         
@@ -286,13 +286,11 @@
                 errorElement.textContent = '';
                 
                 try {
-                    // 1. 先注册用户
+                    // 1. 注册用户（调用后端接口）
                     const registerResponse = await fetch('/api/guest', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            username
-                        })
+                        body: JSON.stringify({ username })
                     });
                     
                     const registerResult = await registerResponse.json();
@@ -301,13 +299,13 @@
                         throw new Error(registerResult.message || '创建账户失败，请稍后再试');
                     }
                     
-                    // 3. 设置永久Cookie
-                    cookieUtils.setAuthCookies(loginResult.username, loginResult.userId);
+                    // 2. 设置Cookie（关键修复：使用正确的registerResult变量）
+                    cookieUtils.setAuthCookies(registerResult.username, registerResult.userId);
                     
                     errorElement.textContent = '账户创建成功！正在进入编辑器...';
                     errorElement.style.color = '#4ade80';
                     
-                    // 跳转至编辑器页面
+                    // 3. 跳转至编辑器页面
                     setTimeout(() => {
                         window.location.href = 'code.html';
                     }, 1500);

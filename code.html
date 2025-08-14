@@ -2431,14 +2431,15 @@
             modal.classList.add('active');
         }
 
+        window.onload = function() {
+            const loading = document.getElementById('loadingIndicator');
+            loading.classList.add('hidden');
+        };
+
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
                 return '您有未保存的更改，确定离开吗？';
             }
-        };
-        window.onload = function() {
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.add('hidden');
         };
     </script>
 </body>
