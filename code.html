@@ -1762,78 +1762,199 @@
             });
         }
 
-        function showDeleteProjectModal(project) {
+        async function showDeleteProjectModal(project) {
             document.getElementById('deleteProjectName').textContent = project.name;
-            document.getElementById('deleteProjectModal').classList.add('active');
+            const modal = document.getElementById('deleteProjectModal');
+            
+            // 检查当前用户是否是项目所有者
+            const { data: membership, error } = await client
+                .from('project_members')
+                .select('role')
+                .eq('project_id', project.id)
+                .eq('user_id', currentUser.id)
+                .single();
+            
+            if (error) {
+                console.error('获取成员角色错误:', error);
+                return;
+            }
+            
+            const isOwner = membership.role === 'owner';
+            
+            // 根据角色修改模态框内容
+            const title = modal.querySelector('.modal-title');
+            const message = modal.querySelector('p');
+            const confirmBtn = modal.querySelector('.modal-btn-confirm');
+            
+            if (isOwner) {
+                title.textContent = '警告：删除项目';
+                title.style.color = '#ef4444';
+                message.innerHTML = `
+                    您即将删除项目 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
+                    <span style="color: #f87171;">
+                        ⚠️ 此操作将永久删除该项目及其所有文件！<br>
+                        ⚠️ 此操作不可撤销！<br>
+                        ⚠️ 所有协作者将失去访问权限！
+                    </span>
+                `;
+                confirmBtn.textContent = '确认删除';
+            } else {
+                title.textContent = '移除项目';
+                title.style.color = '#3b82f6';
+                message.innerHTML = `
+                    您即将从您的项目列表中移除 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
+                    <span style="color: #94a3b8;">
+                        ⚠️ 这只会从您的视图中移除该项目<br>
+                        ⚠️ 项目所有者和其他成员仍可访问<br>
+                        ⚠️ 您可以随时通过邀请链接重新加入
+                    </span>
+                `;
+                confirmBtn.textContent = '确认移除';
+            }
+            
+            modal.classList.add('active');
             
             // 设置确认按钮的事件监听
-            const confirmBtn = document.getElementById('confirmDeleteProjectBtn');
             confirmBtn.onclick = async () => {
                 try {
-                    const deleteFiles = document.getElementById('deleteProjectFiles').checked;
-                    
-                    if (deleteFiles) {
-                        // 先删除项目中的所有文件
-                        const { error: filesError } = await client
-                            .from('files')
-                            .delete()
-                            .eq('project_id', project.id);
-                        
-                        if (filesError) throw filesError;
+                    if (isOwner) {
+                        // 所有者执行完整删除
+                        await deleteProjectCompletely(project.id);
+                        alert('项目及其所有文件已成功删除');
+                    } else {
+                        // 成员只是移除自己
+                        await removeSelfFromProject(project.id);
+                        alert('项目已从您的列表中移除');
                     }
                     
-                    // 删除项目成员关系
-                    const { error: membersError } = await client
-                        .from('project_members')
-                        .delete()
-                        .eq('project_id', project.id);
-                    
-                    if (membersError) throw membersError;
-                    
-                    // 最后删除项目本身
-                    const { error: projectError } = await client
-                        .from('projects')
-                        .delete()
-                        .eq('id', project.id);
-                    
-                    if (projectError) throw projectError;
-                    
-                    // 关闭模态框并刷新项目列表
-                    document.getElementById('deleteProjectModal').classList.remove('active');
+                    modal.classList.remove('active');
                     await loadUserProjects();
                     
                     // 重置当前项目和文件
-                    currentProject = null;
-                    currentFile = null;
-                    editor.setValue('');
-                    document.getElementById('fileName').textContent = '未选择文件';
-                    document.getElementById('lastEditor').textContent = '';
+                    if (currentProject && currentProject.id === project.id) {
+                        currentProject = null;
+                        currentFile = null;
+                        editor.setValue('');
+                        document.getElementById('fileName').textContent = '未选择文件';
+                        document.getElementById('lastEditor').textContent = '';
+                    }
                     
                 } catch (err) {
-                    console.error('删除项目错误:', err);
-                    alert('删除项目失败: ' + err.message);
+                    console.error('操作失败:', err);
+                    alert('操作失败: ' + err.message);
                 }
             };
         }
 
-        function showDeleteFileModal(file) {
+        async function deleteProjectCompletely(projectId) {
+            // 先删除项目中的所有文件
+            const { error: filesError } = await client
+                .from('files')
+                .delete()
+                .eq('project_id', projectId);
+            
+            if (filesError) throw filesError;
+            
+            // 删除项目成员关系
+            const { error: membersError } = await client
+                .from('project_members')
+                .delete()
+                .eq('project_id', projectId);
+            
+            if (membersError) throw membersError;
+            
+            // 最后删除项目本身
+            const { error: projectError } = await client
+                .from('projects')
+                .delete()
+                .eq('id', projectId);
+            
+            if (projectError) throw projectError;
+        }
+
+        async function removeSelfFromProject(projectId) {
+            const { error } = await client
+                .from('project_members')
+                .delete()
+                .eq('project_id', projectId)
+                .eq('user_id', currentUser.id);
+            
+            if (error) throw error;
+        }
+
+        async function showDeleteFileModal(file) {
             document.getElementById('deleteFileName').textContent = file.name;
-            document.getElementById('deleteFileModal').classList.add('active');
+            const modal = document.getElementById('deleteFileModal');
+            
+            // 检查当前用户是否是文件创建者或项目所有者
+            const isCreator = file.created_by === currentUser.id;
+            let isOwner = false;
+            
+            if (!isCreator && currentProject) {
+                const { data: membership, error } = await client
+                    .from('project_members')
+                    .select('role')
+                    .eq('project_id', currentProject.id)
+                    .eq('user_id', currentUser.id)
+                    .single();
+                
+                if (!error) {
+                    isOwner = membership.role === 'owner';
+                }
+            }
+            
+            const canDeletePermanently = isCreator || isOwner;
+            
+            // 根据权限修改模态框内容
+            const title = modal.querySelector('.modal-title');
+            const message = modal.querySelector('p');
+            const confirmBtn = modal.querySelector('.modal-btn-confirm');
+            
+            if (canDeletePermanently) {
+                title.textContent = '删除文件';
+                title.style.color = '#ef4444';
+                message.innerHTML = `
+                    确定要永久删除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
+                    <span style="color: #f87171;">⚠️ 此操作不可恢复！</span>
+                `;
+                confirmBtn.textContent = '确认删除';
+            } else {
+                title.textContent = '移除文件';
+                title.style.color = '#3b82f6';
+                message.innerHTML = `
+                    确定要从您的视图中移除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
+                    <span style="color: #94a3b8;">
+                        ⚠️ 这只会从您的视图中移除该文件<br>
+                        ⚠️ 项目所有者和其他成员仍可访问
+                    </span>
+                `;
+                confirmBtn.textContent = '确认移除';
+            }
+            
+            modal.classList.add('active');
             
             // 设置确认按钮的事件监听
-            const confirmBtn = document.getElementById('confirmDeleteFileBtn');
             confirmBtn.onclick = async () => {
                 try {
-                    const { error } = await client
-                        .from('files')
-                        .delete()
-                        .eq('id', file.id);
+                    if (canDeletePermanently) {
+                        // 执行完整删除
+                        const { error } = await client
+                            .from('files')
+                            .delete()
+                            .eq('id', file.id);
+                        
+                        if (error) throw error;
+                        
+                        alert('文件已永久删除');
+                    } else {
+                        // 成员只是从自己的视图中"移除"文件
+                        // 实际上我们不需要做任何数据库操作，只需从本地列表中移除
+                        files = files.filter(f => f.id !== file.id);
+                        renderFileList();
+                        alert('文件已从您的列表中移除');
+                    }
                     
-                    if (error) throw error;
-                    
-                    // 关闭模态框并刷新文件列表
-                    document.getElementById('deleteFileModal').classList.remove('active');
-                    await loadProjectFiles();
+                    modal.classList.remove('active');
                     
                     // 如果删除的是当前打开的文件，重置编辑器
                     if (currentFile && currentFile.id === file.id) {
@@ -1844,8 +1965,8 @@
                     }
                     
                 } catch (err) {
-                    console.error('删除文件错误:', err);
-                    alert('删除文件失败: ' + err.message);
+                    console.error('操作失败:', err);
+                    alert('操作失败: ' + err.message);
                 }
             };
         }
