@@ -286,20 +286,12 @@
                 errorElement.textContent = '';
                 
                 try {
-                    // 生成随机密码（游客账户不需要用户输入密码）
-                    const randomPassword = Math.random().toString(36).slice(-8);
-                    
                     // 1. 先注册用户
-                    const registerResponse = await fetch('/api/register', {
+                    const registerResponse = await fetch('/api/guest', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            username,
-                            // 使用用户名+随机字符串作为邮箱（满足格式要求）
-                            email: `${username}_${Date.now()}@guest.m-code.top`,
-                            // 游客模式不需要验证码
-                            captcha: 'guest_mode',
-                            password: randomPassword
+                            username
                         })
                     });
                     
@@ -307,22 +299,6 @@
                     
                     if (!registerResponse.ok) {
                         throw new Error(registerResult.message || '创建账户失败，请稍后再试');
-                    }
-                    
-                    // 2. 注册成功后自动登录
-                    const loginResponse = await fetch('/api/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            username,
-                            password: randomPassword
-                        })
-                    });
-                    
-                    const loginResult = await loginResponse.json();
-                    
-                    if (!loginResponse.ok) {
-                        throw new Error(loginResult.message || '登录失败，请稍后再试');
                     }
                     
                     // 3. 设置永久Cookie
@@ -338,7 +314,7 @@
                     
                 } catch (err) {
                     errorElement.textContent = err.message;
-                    createBtn.innerHTML = '<i class="fas fa-user-plus"></i> 创建临时账户';
+                    createBtn.innerHTML = '<i class="fas fa-user-plus"></i> 创建游客账户';
                     createBtn.disabled = false;
                 }
             });
