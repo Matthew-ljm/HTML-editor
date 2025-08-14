@@ -602,19 +602,6 @@
             to { transform: rotate(360deg); }
         }
 
-        .action-item {
-            padding: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            border-radius: 5px;
-        }
-
-        .action-item:hover {
-            background-color: #334155;
-        }
-
         .more-actions-btn {
             margin-left: auto;
             color: #94a3b8;
@@ -634,6 +621,35 @@
 
         .more-actions-btn:hover {
             color: #3b82f6;
+        }
+
+        /* 操作菜单样式 */
+        .modal-content.action-menu {
+            width: 160px;
+            padding: 5px 0;
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .action-item:hover {
+            background-color: #334155;
+        }
+
+        .action-item i {
+            width: 18px;
+            text-align: center;
         }
     </style>
 </head>
@@ -856,6 +872,29 @@
             <div class="modal-actions">
                 <button class="modal-btn modal-btn-cancel" id="cancelRenameBtn">取消</button>
                 <button class="modal-btn modal-btn-confirm" id="confirmRenameBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目操作菜单模态框 -->
+    <div class="modal" id="projectActionsModal">
+        <div class="modal-content" style="width: 200px; padding: 10px;">
+            <div class="action-item" data-action="details">
+                <i class="fas fa-info-circle"></i> 详情
+            </div>
+            <div class="action-item" data-action="delete" style="color: #f87171;">
+                <i class="fas fa-trash"></i> 删除
+            </div>
+        </div>
+    </div>
+
+    <!-- 项目详情模态框 -->
+    <div class="modal" id="projectDetailsModal">
+        <div class="modal-content">
+            <h3 class="modal-title">项目详情</h3>
+            <div id="projectDetailsContent" style="margin-bottom: 15px;"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="closeProjectDetailsBtn">关闭</button>
             </div>
         </div>
     </div>
@@ -1957,6 +1996,28 @@
                     
                     projectList.appendChild(li);
                 });
+
+                // 项目详情关闭按钮
+                document.getElementById('closeProjectDetailsBtn').addEventListener('click', () => {
+                    document.getElementById('projectDetailsModal').classList.remove('active');
+                });
+
+                // 项目操作菜单项点击事件
+                document.querySelectorAll('#projectActionsModal .action-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const action = e.currentTarget.dataset.action;
+                        document.getElementById('projectActionsModal').classList.remove('active');
+                        
+                        switch(action) {
+                            case 'details':
+                                showProjectDetails(currentActionProject);
+                                break;
+                            case 'delete':
+                                showDeleteProjectModal(currentActionProject);
+                                break;
+                        }
+                    });
+                });
             }
         }
 
@@ -2183,14 +2244,43 @@
         function showFileActionsMenu(file, button) {
             currentActionFile = file;
             const modal = document.getElementById('fileActionsModal');
+            const modalContent = modal.querySelector('.modal-content');
+            modalContent.classList.add('action-menu');
             
-            // 定位菜单在按钮附近
+            // 更精确的定位计算
             const rect = button.getBoundingClientRect();
+            const modalWidth = 160; // 菜单宽度
+            const modalHeight = 120; // 菜单高度
+            
+            // 确保菜单不会超出视口
+            let left = rect.left;
+            if (left + modalWidth > window.innerWidth) {
+                left = window.innerWidth - modalWidth - 10;
+            }
+            
+            let top = rect.bottom + 5;
+            if (top + modalHeight > window.innerHeight) {
+                top = rect.top - modalHeight - 5;
+            }
+            
             modal.style.position = 'fixed';
-            modal.style.top = `${rect.bottom + window.scrollY}px`;
-            modal.style.left = `${rect.left + window.scrollX - 150}px`;
+            modal.style.top = `${top}px`;
+            modal.style.left = `${left}px`;
+            modal.style.transform = 'none'; // 移除默认的动画效果
             
             modal.classList.add('active');
+            
+            // 点击外部关闭菜单
+            const closeMenu = (e) => {
+                if (!modal.contains(e.target)) {
+                    modal.classList.remove('active');
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 100);
         }
 
         function showFileDetails(file) {
@@ -2240,14 +2330,40 @@
         function showProjectActionsMenu(project, button) {
             currentActionProject = project;
             const modal = document.getElementById('projectActionsModal');
+            const modalContent = modal.querySelector('.modal-content');
+            modalContent.classList.add('action-menu');
             
-            // 定位菜单在按钮附近
             const rect = button.getBoundingClientRect();
+            const modalWidth = 160;
+            const modalHeight = 80;
+            
+            let left = rect.left;
+            if (left + modalWidth > window.innerWidth) {
+                left = window.innerWidth - modalWidth - 10;
+            }
+            
+            let top = rect.bottom + 5;
+            if (top + modalHeight > window.innerHeight) {
+                top = rect.top - modalHeight - 5;
+            }
+            
             modal.style.position = 'fixed';
-            modal.style.top = `${rect.bottom + window.scrollY}px`;
-            modal.style.left = `${rect.left + window.scrollX - 150}px`;
+            modal.style.top = `${top}px`;
+            modal.style.left = `${left}px`;
+            modal.style.transform = 'none';
             
             modal.classList.add('active');
+            
+            const closeMenu = (e) => {
+                if (!modal.contains(e.target)) {
+                    modal.classList.remove('active');
+                    document.removeEventListener('click', closeMenu);
+                }
+            };
+            
+            setTimeout(() => {
+                document.addEventListener('click', closeMenu);
+            }, 100);
         }
 
         function showProjectDetails(project) {
