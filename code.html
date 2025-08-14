@@ -1066,6 +1066,8 @@
         let refresh = 0;
         let currentActionFile = null;
         let currentActionProject = null;
+        let realtimeChannel = null;
+        let presenceChannel = null;
         
         // Supabase配置变量
         let supabaseUrl = null;
@@ -1187,6 +1189,128 @@
             }
         }
 
+        // 初始化实时订阅
+        function setupRealtimeSubscriptions() {
+            // 清理现有订阅
+            if (realtimeChannel) {
+                client.removeChannel(realtimeChannel);
+            }
+            if (presenceChannel) {
+                client.removeChannel(presenceChannel);
+            }
+
+            if (!currentProject) return;
+
+            // 文件内容更新订阅
+            realtimeChannel = client
+                .channel('file_updates')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'files',
+                        filter: `id=eq.${currentFile?.id || ''}`
+                    },
+                    (payload) => handleFileUpdate(payload.new)
+                )
+                .subscribe();
+
+            // 文件列表更新订阅
+            client
+                .channel('file_list_updates')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'files',
+                        filter: `project_id=eq.${currentProject.id}`
+                    },
+                    () => loadProjectFiles()
+                )
+                .subscribe();
+
+            // Presence 订阅
+            presenceChannel = client.channel('presence:' + currentProject.id, {
+                config: {
+                    presence: {
+                        key: currentUser.id
+                    }
+                }
+            });
+
+            presenceChannel.on('presence', { event: 'sync' }, () => {
+                const state = presenceChannel.presenceState();
+                updateCollaboratorsStatus(state);
+            });
+
+            presenceChannel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await presenceChannel.track({
+                        user_id: currentUser.id,
+                        username: currentUser.username,
+                        online_at: new Date().toISOString()
+                    });
+                }
+            });
+        }
+
+        function updateCollaboratorsStatus(state) {
+            const currentState = state[Object.keys(state)[0]];
+            if (!currentState) return;
+            
+            collaborators.forEach(collaborator => {
+                const isOnline = currentState.some(user => user.user_id === collaborator.id);
+                const avatar = document.querySelector(`.collaborator-avatar[data-user-id="${collaborator.id}"]`);
+                if (avatar) {
+                    const indicator = avatar.querySelector('.collaborator-active');
+                    if (indicator) {
+                        indicator.style.backgroundColor = isOnline ? '#4ade80' : '#94a3b8';
+                    }
+                }
+            });
+        }
+
+        function handleFileUpdate(updatedFile) {
+            // 忽略自己触发的更新
+            if (updatedFile.last_updated_by === currentUser.id) return;
+            
+            // 如果用户正在编辑，询问是否接受更改
+            if (currentFile && currentFile.hasChanges) {
+                const collaborator = collaborators.find(c => c.id === updatedFile.last_updated_by);
+                const username = collaborator ? collaborator.username : '其他用户';
+                const accept = confirm(`文件已被 ${username} 修改。是否接受这些更改？`);
+                if (!accept) return;
+            }
+            
+            // 保存当前光标和选择状态
+            const cursor = editor.getCursor();
+            const selections = editor.listSelections();
+            
+            // 应用更新
+            isSyncing = true;
+            editor.setValue(updatedFile.content);
+            setEditorMode(updatedFile.language);
+            isSyncing = false;
+            
+            // 恢复光标和选择
+            editor.setCursor(cursor);
+            if (selections.length > 0) {
+                editor.setSelections(selections);
+            }
+            
+            // 更新本地文件状态
+            if (currentFile) {
+                currentFile.content = updatedFile.content;
+                currentFile.updated_at = updatedFile.updated_at;
+                currentFile.last_updated_by = updatedFile.last_updated_by;
+                currentFile.hasChanges = false;
+            }
+            
+            updateLastEditorInfo(updatedFile.last_updated_by);
+        }
+
         // 在DOMContentLoaded事件处理函数中添加对URL参数的检查
         document.addEventListener('DOMContentLoaded', async () => {
             const configLoaded = await getSupabaseConfig();
@@ -1225,6 +1349,8 @@
                 clearInterval(saveInterval);
                 clearInterval(checkUpdateInterval);
                 clearInterval(checkFileListInterval);
+                if (realtimeChannel) client.removeChannel(realtimeChannel);
+                if (presenceChannel) client.removeChannel(presenceChannel);
                 window.location.href = 'index.html';
             });
             const loading = document.getElementById('loadingIndicator2');
@@ -1564,6 +1690,7 @@
                 renderCollaborators();
                 renderProjectList();
                 setupTimers();
+                setupRealtimeSubscriptions();
                 
             } catch (err) {
                 console.error('选择项目错误:', err);
@@ -1599,20 +1726,14 @@
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
                     if (save === 1) {
-                        saveCurrentFile()
+                        saveCurrentFile();
                         currentFile.hasChanges = false;
                     }
                 }
             }, 100);
 
-            checkUpdateInterval = setInterval(() => {
-                if (currentFile && !currentFile.hasChanges) {
-                    if (refresh === 1) {
-                        saveCurrentFile()
-                        checkFileUpdates();
-                    }
-                }
-            }, 2000);
+            // 不再需要检查更新的定时器，因为使用实时订阅
+            checkUpdateInterval = setInterval(() => {}, 2000);
             
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
@@ -1621,35 +1742,6 @@
                     }
                 }
             }, 60000);
-        }
-
-        async function checkFileUpdates() {
-            try {
-                if (!currentFile || currentFile.hasChanges) return;
-
-                const { data: file, error } = await client
-                    .from('files')
-                    .select('*')
-                    .eq('id', currentFile.id)
-                    .single();
-                
-                if (error) throw error;
-                
-                if (file.updated_at !== currentFile.updated_at) {
-                    if (file.last_updated_by !== currentUser.id) {
-                        applyRemoteChanges(file.content, file.last_updated_by);
-                    }
-                    currentFile.content = file.content;
-                    currentFile.updated_at = file.updated_at;
-                    currentFile.last_updated_by = file.last_updated_by;
-                    currentFile.hasChanges = false;
-                    editor.setValue(file.content);
-                    editor.setCursor(editor.lineCount(), 0);
-                }
-                
-            } catch (err) {
-                console.error('检查文件更新错误:', err);
-            }
         }
 
         function applyRemoteChanges(content, lastUpdatedBy) {
@@ -1723,6 +1815,25 @@
                 const fileItem = document.querySelector(`.file-item[data-file-id="${fileId}"]`);
                 if (fileItem) fileItem.classList.add('active');
                 
+                // 更新实时订阅以监听此文件
+                if (realtimeChannel) {
+                    client.removeChannel(realtimeChannel);
+                }
+                
+                realtimeChannel = client
+                    .channel('file_updates')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'files',
+                            filter: `id=eq.${fileId}`
+                        },
+                        (payload) => handleFileUpdate(payload.new)
+                    )
+                    .subscribe();
+                
             } catch (err) {
                 console.error('选择文件错误:', err);
                 alert('加载文件失败: ' + err.message);
@@ -1747,8 +1858,6 @@
                 
                 if (error) throw error;
                 
-                await new Promise(resolve => setTimeout(resolve, 500));
-
                 currentFile.content = content;
                 currentFile.last_updated_by = currentUser.id;
                 currentFile.updated_at = now.toISOString();
@@ -1813,7 +1922,7 @@
                 const div = document.createElement('div');
                 div.className = 'collaborator';
                 div.innerHTML = `
-                    <div class="collaborator-avatar">
+                    <div class="collaborator-avatar" data-user-id="${collaborator.id}">
                         ${collaborator.username.charAt(0).toUpperCase()}
                         <div class="collaborator-active"></div>
                     </div>
