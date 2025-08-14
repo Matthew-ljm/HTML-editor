@@ -656,6 +656,32 @@
             width: 18px;
             text-align: center;
         }
+
+        .guest-notification {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .guest-notification i {
+            font-size: 1.1rem;
+        }
+
+        .guest-notification a {
+            color: white;
+            text-decoration: underline;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -898,6 +924,11 @@
         </div>
     </div>
 
+    <div id="guestNotification" class="guest-notification hidden">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>您正在使用游客账户，数据将在24小时后自动清除。建议<a href="index.html">注册账号</a>保存数据。</span>
+    </div>
+
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
@@ -1007,7 +1038,8 @@
             checkAuthCookies: function() {
                 const username = this.getCookie('mcode_username');
                 const userId = this.getCookie('mcode_userid');
-                return { username, userId };
+                const userType = this.getCookie('mcode_usertype');
+                return { username, userId, isGuest: userType === 'guest' };
             }
         };
 
@@ -1161,6 +1193,10 @@
             if (!username || !userId) {
                 window.location.href = 'index.html';
                 return;
+            }
+
+            if (isGuest) {
+                document.getElementById('guestNotification').classList.remove('hidden');
             }
 
             currentUser = { username, id: userId };

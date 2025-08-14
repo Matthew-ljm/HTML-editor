@@ -253,10 +253,10 @@
                 document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Lax`;
             },
             setAuthCookies: function(username, userId) {
-                // 游客账户有效期1天（按提示文本修改）
                 const guestExpiry = 24 * 60 * 60; // 24小时的秒数
                 this.setCookie('mcode_username', username, guestExpiry);
                 this.setCookie('mcode_userid', userId, guestExpiry);
+                this.setCookie('mcode_usertype', 'guest', guestExpiry);
             }
         };
         
