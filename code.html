@@ -915,17 +915,15 @@
         async function getSupabaseConfig() {
             const loading = document.getElementById('loadingIndicator2');
             loading.classList.remove('hidden2');
-            // 如果已经加载完成，直接返回
+            
             if (supabaseUrl && supabaseKey) {
                 return true;
             }
 
-            // 如果正在加载中，等待同一个Promise
             if (isConfigLoading) {
                 return await configLoadPromise;
             }
 
-            // 开始新的请求
             isConfigLoading = true;
             configLoadPromise = (async () => {
                 try {
@@ -944,16 +942,13 @@
 
                     const config = await response.json();
                     
-                    // 验证配置格式
                     if (typeof config.url !== 'string' || typeof config.key !== 'string') {
                         throw new Error('配置格式错误');
                     }
 
-                    // 缓存到变量
                     supabaseUrl = config.url;
                     supabaseKey = config.key;
                     
-                    // 初始化客户端
                     client = supabase.createClient(supabaseUrl, supabaseKey);
                     return true;
                 } catch (error) {
@@ -962,7 +957,6 @@
                     return false;
                 } finally {
                     isConfigLoading = false;
-                    // 将loadingIndicator2修改内容为“正在更新配置...”
                     loading.textContent = '正在更新配置...';
                 }
             })();
@@ -970,132 +964,233 @@
             return await configLoadPromise;
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 先获取Supabase配置
-            const configLoaded = await getSupabaseConfig();
-            if (!configLoaded) {
-                return;
-            }
-
-            const { username, userId } = cookieUtils.checkAuthCookies();
-            if (!username || !userId) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            currentUser = { username, id: userId };
-            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
-
-            initEditor();
-            await loadUserProjects();
-            setupEventListeners();
-
-            document.getElementById('logoutBtn').addEventListener('click', () => {
-                cookieUtils.clearAuthCookies();
-                clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
-                window.location.href = 'index.html';
-            });
-            const loading = document.getElementById('loadingIndicator2');
-            loading.classList.add('hidden2');
-        });
-
-        // 开关相关逻辑实现
-        document.addEventListener('DOMContentLoaded', () => {
-            // 获取开关元素
-            const liveSyncSwitch = document.getElementById('liveSync');
-            const autoSaveSwitch = document.getElementById('autoSave');
-            const autoRefreshSwitch = document.getElementById('autoRefresh');
-
-            // 初始化开关状态（从本地存储加载）
-            function initSwitchStates() {
-                const savedLive = localStorage.getItem('liveSyncState');
-                const savedSave = localStorage.getItem('autoSaveState');
-                const savedRefresh = localStorage.getItem('autoRefreshState');
-                
-                // 初始状态默认全关
-                liveSyncSwitch.checked = savedLive === 'true';
-                autoSaveSwitch.checked = savedSave === 'true';
-                autoRefreshSwitch.checked = savedRefresh === 'true';
-                
-                // 应用初始状态的交互限制
-                updateSubSwitchDisabledState();
-                // 初始化全局变量
-                updateGlobalVariables();
-            }
-
-            // 保存开关状态到本地存储
-            function saveSwitchStates() {
-                localStorage.setItem('liveSyncState', liveSyncSwitch.checked);
-                localStorage.setItem('autoSaveState', autoSaveSwitch.checked);
-                localStorage.setItem('autoRefreshState', autoRefreshSwitch.checked);
-            }
-
-            // 更新子开关(2,3)的禁用状态
-            function updateSubSwitchDisabledState() {
-                // 当开关1打开时，禁用开关2和3（用户无法操作）
-                const isDisabled = liveSyncSwitch.checked;
-                autoSaveSwitch.disabled = isDisabled;
-                autoRefreshSwitch.disabled = isDisabled;
-                
-                // 视觉上区分禁用状态
-                const subSwitches = document.querySelectorAll('#autoSave + .slider, #autoRefresh + .slider');
-                subSwitches.forEach(slider => {
-                    slider.style.opacity = isDisabled ? '0.7' : '1';
-                });
-            }
-
-            // 同步开关状态到全局变量
-            function updateGlobalVariables() {
-                live = liveSyncSwitch.checked ? 1 : 0;
-                save = autoSaveSwitch.checked ? 1 : 0;
-                refresh = autoRefreshSwitch.checked ? 1 : 0;
-            }
-
-            // 检查子开关状态控制主开关
-            function checkSubSwitches() {
-                // 当开关2和3都打开时，自动打开开关1
-                if (autoSaveSwitch.checked && autoRefreshSwitch.checked) {
-                    liveSyncSwitch.checked = true;
-                    updateSubSwitchDisabledState();
+        // 按钮状态管理
+        function setButtonLoading(button, isLoading) {
+            if (isLoading) {
+                button.disabled = true;
+                const originalText = button.innerHTML;
+                button.dataset.originalText = originalText;
+                button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${originalText}`;
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
                 }
             }
+        }
 
-            // 开关1变化事件
-            liveSyncSwitch.addEventListener('change', () => {
-                if (liveSyncSwitch.checked) {
-                    // 开关1打开时，强制打开开关2和3
-                    autoSaveSwitch.checked = true;
-                    autoRefreshSwitch.checked = true;
-                } else {
-                    // 开关1关闭时，强制关闭开关2和3
-                    autoSaveSwitch.checked = false;
-                    autoRefreshSwitch.checked = false;
+        // 关闭所有模态框
+        function closeAllModals() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+        }
+
+        // 删除项目完全
+        async function deleteProjectCompletely(projectId) {
+            const { error: filesError } = await client
+                .from('files')
+                .delete()
+                .eq('project_id', projectId);
+            
+            if (filesError) throw filesError;
+            
+            const { error: membersError } = await client
+                .from('project_members')
+                .delete()
+                .eq('project_id', projectId);
+            
+            if (membersError) throw membersError;
+            
+            const { error: projectError } = await client
+                .from('projects')
+                .delete()
+                .eq('id', projectId);
+            
+            if (projectError) throw projectError;
+        }
+
+        // 从项目中移除自己
+        async function removeSelfFromProject(projectId) {
+            const { error } = await client
+                .from('project_members')
+                .delete()
+                .eq('project_id', projectId)
+                .eq('user_id', currentUser.id);
+            
+            if (error) throw error;
+        }
+
+        // 显示删除项目模态框
+        async function showDeleteProjectModal(project) {
+            closeAllModals();
+            document.getElementById('deleteProjectName').textContent = project.name;
+            const modal = document.getElementById('deleteProjectModal');
+            
+            const { data: membership, error } = await client
+                .from('project_members')
+                .select('role')
+                .eq('project_id', project.id)
+                .eq('user_id', currentUser.id)
+                .single();
+            
+            if (error) {
+                console.error('获取成员角色错误:', error);
+                return;
+            }
+            
+            const isOwner = membership.role === 'owner';
+            const title = modal.querySelector('.modal-title');
+            const message = modal.querySelector('p');
+            const confirmBtn = modal.querySelector('.modal-btn-confirm');
+            
+            if (isOwner) {
+                title.textContent = '警告：删除项目';
+                title.style.color = '#ef4444';
+                message.innerHTML = `
+                    您即将删除项目 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
+                    <span style="color: #f87171;">
+                        ⚠️ 此操作将永久删除该项目及其所有文件！<br>
+                        ⚠️ 此操作不可撤销！<br>
+                        ⚠️ 所有协作者将失去访问权限！
+                    </span>
+                `;
+                confirmBtn.textContent = '确认删除';
+            } else {
+                title.textContent = '移除项目';
+                title.style.color = '#3b82f6';
+                message.innerHTML = `
+                    您即将从您的项目列表中移除 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
+                    <span style="color: #94a3b8;">
+                        ⚠️ 这只会从您的视图中移除该项目<br>
+                        ⚠️ 项目所有者和其他成员仍可访问<br>
+                        ⚠️ 您可以随时通过邀请链接重新加入
+                    </span>
+                `;
+                confirmBtn.textContent = '确认移除';
+            }
+            
+            modal.classList.add('active');
+            
+            confirmBtn.onclick = async () => {
+                setButtonLoading(confirmBtn, true);
+                try {
+                    if (isOwner) {
+                        await deleteProjectCompletely(project.id);
+                        alert('项目及其所有文件已成功删除');
+                    } else {
+                        await removeSelfFromProject(project.id);
+                        alert('项目已从您的列表中移除');
+                    }
+                    
+                    closeAllModals();
+                    await loadUserProjects();
+                    
+                    if (currentProject?.id === project.id) {
+                        resetEditorState();
+                    }
+                } catch (err) {
+                    console.error('操作失败:', err);
+                    alert('操作失败: ' + err.message);
+                } finally {
+                    setButtonLoading(confirmBtn, false);
                 }
-                updateSubSwitchDisabledState();
-                saveSwitchStates();
-                updateGlobalVariables();
-            });
+            };
+        }
 
-            // 开关2变化事件
-            autoSaveSwitch.addEventListener('change', () => {
-                checkSubSwitches();
-                saveSwitchStates();
-                updateGlobalVariables();
-            });
+        // 显示删除文件模态框
+        async function showDeleteFileModal(file) {
+            closeAllModals();
+            document.getElementById('deleteFileName').textContent = file.name;
+            const modal = document.getElementById('deleteFileModal');
+            
+            const isCreator = file.created_by === currentUser.id;
+            let isOwner = false;
+            
+            if (!isCreator && currentProject) {
+                const { data: membership, error } = await client
+                    .from('project_members')
+                    .select('role')
+                    .eq('project_id', currentProject.id)
+                    .eq('user_id', currentUser.id)
+                    .single();
+                
+                if (!error) {
+                    isOwner = membership.role === 'owner';
+                }
+            }
+            
+            const canDeletePermanently = isCreator || isOwner;
+            const title = modal.querySelector('.modal-title');
+            const message = modal.querySelector('p');
+            const confirmBtn = modal.querySelector('.modal-btn-confirm');
+            
+            if (canDeletePermanently) {
+                title.textContent = '删除文件';
+                title.style.color = '#ef4444';
+                message.innerHTML = `
+                    确定要永久删除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
+                    <span style="color: #f87171;">⚠️ 此操作不可恢复！</span>
+                `;
+                confirmBtn.textContent = '确认删除';
+            } else {
+                title.textContent = '移除文件';
+                title.style.color = '#3b82f6';
+                message.innerHTML = `
+                    确定要从您的视图中移除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
+                    <span style="color: #94a3b8;">
+                        ⚠️ 这只会从您的视图中移除该文件<br>
+                        ⚠️ 项目所有者和其他成员仍可访问
+                    </span>
+                `;
+                confirmBtn.textContent = '确认移除';
+            }
+            
+            modal.classList.add('active');
+            
+            confirmBtn.onclick = async () => {
+                setButtonLoading(confirmBtn, true);
+                try {
+                    if (canDeletePermanently) {
+                        const { error } = await client
+                            .from('files')
+                            .delete()
+                            .eq('id', file.id);
+                        
+                        if (error) throw error;
+                        
+                        files = files.filter(f => f.id !== file.id);
+                        alert('文件已永久删除');
+                    } else {
+                        files = files.filter(f => f.id !== file.id);
+                        alert('文件已从您的列表中移除');
+                    }
+                    
+                    closeAllModals();
+                    renderFileList();
+                    
+                    if (currentFile?.id === file.id) {
+                        resetEditorState();
+                    }
+                } catch (err) {
+                    console.error('操作失败:', err);
+                    alert('操作失败: ' + err.message);
+                } finally {
+                    setButtonLoading(confirmBtn, false);
+                }
+            };
+        }
 
-            // 开关3变化事件
-            autoRefreshSwitch.addEventListener('change', () => {
-                checkSubSwitches();
-                saveSwitchStates();
-                updateGlobalVariables();
-            });
+        // 重置编辑器状态
+        function resetEditorState() {
+            currentProject = null;
+            currentFile = null;
+            editor.setValue('');
+            document.getElementById('fileName').textContent = '未选择文件';
+            document.getElementById('lastEditor').textContent = '';
+        }
 
-            // 初始化开关状态
-            initSwitchStates();
-        });
-
+        // 初始化编辑器
         function initEditor() {
             editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
                 lineNumbers: true,
@@ -1103,12 +1198,11 @@
                 lineWrapping: true,
                 indentUnit: 4,
                 tabSize: 4,
-                indentWithTabs: false, // 使用空格而不是制表符缩进
+                indentWithTabs: false,
                 autoCloseBrackets: true,
                 matchBrackets: true,
                 electricChars: true,
-                mode: 'htmlmixed', // 默认模式设置为htmlmixed
-                // 修复缩进问题的关键配置
+                mode: 'htmlmixed',
                 extraKeys: {
                     'Ctrl-S': saveCurrentFile,
                     'Cmd-S': saveCurrentFile,
@@ -1116,14 +1210,12 @@
                     'Alt-Space': 'autocomplete',
                     'Ctrl-Enter': 'autocomplete',
                     'Enter': function(cm) {
-                        // 处理回车键，确保正确缩进
                         if (cm.somethingSelected()) {
                             return CodeMirror.Pass;
                         }
                         cm.execCommand("newlineAndIndent");
                     },
                     'Tab': function(cm) {
-                        // 改进的Tab键处理
                         if (cm.somethingSelected()) {
                             cm.indentSelection("add");
                         } else {
@@ -1152,15 +1244,10 @@
                         return CodeMirror.hint.anyword(cm, options);
                     }
                 },
-                // 添加gutters配置（可选）
                 gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-                // 添加折叠功能（可选）
                 foldGutter: true,
-                // 自动高亮当前行
                 styleActiveLine: true,
-                // 自动聚焦
                 autofocus: true,
-                // 添加括号匹配高亮
                 highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
             });
 
@@ -1171,6 +1258,7 @@
             });
         }
 
+        // C++代码提示
         function cppHint(cm, options) {
             const cursor = cm.getCursor();
             const token = cm.getTokenAt(cursor);
@@ -1204,6 +1292,7 @@
             };
         }
 
+        // 设置编辑器模式
         function setEditorMode(language) {
             let mode;
             
@@ -1217,6 +1306,7 @@
             editor.setOption('mode', mode);
         }
 
+        // 加载用户项目
         async function loadUserProjects() {
             try {
                 if (!currentUser?.id) return;
@@ -1241,6 +1331,7 @@
             }
         }
 
+        // 渲染项目列表
         function renderProjectList() {
             const projectList = document.getElementById('projectList');
             projectList.innerHTML = '';
@@ -1255,23 +1346,15 @@
                 `;
                 li.dataset.projectId = project.id;
                 li.addEventListener('click', (e) => {
-                    // 只有当点击的不是删除图标时才选择项目
                     if (!e.target.classList.contains('delete-icon')) {
                         selectProject(project.id);
                     }
                 });
-                
-                // 添加删除项目的事件监听
-                const deleteIcon = li.querySelector('.delete-icon');
-                deleteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showDeleteProjectModal(project);
-                });
-                
                 projectList.appendChild(li);
             });
         }
 
+        // 选择项目
         async function selectProject(projectId) {
             try {
                 clearInterval(saveInterval);
@@ -1311,6 +1394,7 @@
             }
         }
 
+        // 加载项目文件
         async function loadProjectFiles() {
             try {
                 if (!currentProject) return;
@@ -1335,6 +1419,7 @@
             }
         }
 
+        // 设置定时器
         function setupTimers() {
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
@@ -1357,7 +1442,6 @@
             
             checkFileListInterval = setInterval(() => {
                 if (currentProject) {
-                    // 如果live为1或refresh为1，则检查文件列表更新
                     if (live === 1 || refresh === 1) {
                         loadProjectFiles();
                     }
@@ -1365,6 +1449,7 @@
             }, 10000);
         }
 
+        // 检查文件更新
         async function checkFileUpdates() {
             try {
                 if (!currentFile || currentFile.hasChanges) return;
@@ -1395,6 +1480,7 @@
             }
         }
 
+        // 应用远程更改
         function applyRemoteChanges(content, lastUpdatedBy) {
             if (!currentFile) return;
             
@@ -1406,6 +1492,7 @@
             isSyncing = false;
         }
 
+        // 更新最后编辑者信息
         function updateLastEditorInfo(userId) {
             if (!userId) return;
             
@@ -1415,6 +1502,7 @@
             }
         }
 
+        // 渲染文件列表
         function renderFileList() {
             const fileList = document.getElementById('fileList');
             fileList.innerHTML = '';
@@ -1429,23 +1517,15 @@
                 `;
                 li.dataset.fileId = file.id;
                 li.addEventListener('click', (e) => {
-                    // 只有当点击的不是删除图标时才选择文件
                     if (!e.target.classList.contains('delete-icon')) {
                         selectFile(file.id);
                     }
                 });
-                
-                // 添加删除文件的事件监听
-                const deleteIcon = li.querySelector('.delete-icon');
-                deleteIcon.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showDeleteFileModal(file);
-                });
-                
                 fileList.appendChild(li);
             });
         }
 
+        // 选择文件
         async function selectFile(fileId) {
             try {
                 const file = files.find(f => f.id === fileId);
@@ -1472,6 +1552,7 @@
             }
         }
 
+        // 保存当前文件
         async function saveCurrentFile() {
             if (!currentFile || !currentFile.hasChanges) return;
             
@@ -1504,6 +1585,7 @@
             }
         }
 
+        // 运行代码
         function runCode() {
             if (!currentFile) {
                 alert('请先选择文件');
@@ -1527,7 +1609,8 @@
                     alert('当前文件类型不支持直接运行');
             }
         }
-        
+
+        // 下载当前文件
         function downloadCurrentFile() {
             if (!currentFile) {
                 alert('请先选择文件');
@@ -1548,6 +1631,7 @@
             }, 100);
         }
 
+        // 渲染协作者
         function renderCollaborators() {
             const collaboratorsContainer = document.getElementById('collaborators');
             collaboratorsContainer.innerHTML = '';
@@ -1566,26 +1650,54 @@
             });
         }
 
+        // 设置事件监听器
         function setupEventListeners() {
+            // 项目列表事件委托
+            document.getElementById('projectList').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-icon')) {
+                    e.stopPropagation();
+                    const projectId = e.target.dataset.projectId;
+                    const project = projects.find(p => p.id === projectId);
+                    if (project) showDeleteProjectModal(project);
+                }
+            });
+
+            // 文件列表事件委托
+            document.getElementById('fileList').addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-icon')) {
+                    e.stopPropagation();
+                    const fileId = e.target.dataset.fileId;
+                    const file = files.find(f => f.id === fileId);
+                    if (file) showDeleteFileModal(file);
+                }
+            });
+
+            // 添加项目按钮
             document.getElementById('addProjectBtn').addEventListener('click', () => {
+                closeAllModals();
                 document.getElementById('newProjectModal').classList.add('active');
                 document.getElementById('projectNameInput').focus();
             });
             
+            // 取消项目创建
             document.getElementById('cancelProjectBtn').addEventListener('click', () => {
-                document.getElementById('newProjectModal').classList.remove('active');
+                closeAllModals();
             });
             
+            // 确认项目创建
             document.getElementById('confirmProjectBtn').addEventListener('click', async () => {
-                const name = document.getElementById('projectNameInput').value.trim();
-                const description = document.getElementById('projectDescInput').value.trim();
-                
-                if (!name) {
-                    alert('请输入项目名称');
-                    return;
-                }
+                const btn = document.getElementById('confirmProjectBtn');
+                setButtonLoading(btn, true);
                 
                 try {
+                    const name = document.getElementById('projectNameInput').value.trim();
+                    const description = document.getElementById('projectDescInput').value.trim();
+                    
+                    if (!name) {
+                        alert('请输入项目名称');
+                        return;
+                    }
+                    
                     const { data: project, error } = await client
                         .from('projects')
                         .insert([{ 
@@ -1606,7 +1718,7 @@
                             role: 'owner'
                         }]);
                     
-                    document.getElementById('newProjectModal').classList.remove('active');
+                    closeAllModals();
                     document.getElementById('projectNameInput').value = '';
                     document.getElementById('projectDescInput').value = '';
                     await loadUserProjects();
@@ -1614,33 +1726,42 @@
                 } catch (err) {
                     console.error('创建项目错误:', err);
                     alert('创建项目失败: ' + err.message);
+                } finally {
+                    setButtonLoading(btn, false);
                 }
             });
             
+            // 添加文件按钮
             document.getElementById('addFileBtn').addEventListener('click', () => {
                 if (!currentProject) {
                     alert('请先选择项目');
                     return;
                 }
                 
+                closeAllModals();
                 document.getElementById('newFileModal').classList.add('active');
                 document.getElementById('fileNameInput').focus();
             });
             
+            // 取消文件创建
             document.getElementById('cancelFileBtn').addEventListener('click', () => {
-                document.getElementById('newFileModal').classList.remove('active');
+                closeAllModals();
             });
             
+            // 确认文件创建
             document.getElementById('confirmFileBtn').addEventListener('click', async () => {
-                const name = document.getElementById('fileNameInput').value.trim();
-                const language = document.getElementById('fileLanguageSelect').value;
-                
-                if (!name) {
-                    alert('请输入文件名称');
-                    return;
-                }
+                const btn = document.getElementById('confirmFileBtn');
+                setButtonLoading(btn, true);
                 
                 try {
+                    const name = document.getElementById('fileNameInput').value.trim();
+                    const language = document.getElementById('fileLanguageSelect').value;
+                    
+                    if (!name) {
+                        alert('请输入文件名称');
+                        return;
+                    }
+                    
                     const { data: file, error } = await client
                         .from('files')
                         .insert([{ 
@@ -1656,7 +1777,7 @@
                     
                     if (error) throw error;
                     
-                    document.getElementById('newFileModal').classList.remove('active');
+                    closeAllModals();
                     document.getElementById('fileNameInput').value = '';
                     await selectProject(currentProject.id);
                     await selectFile(file.id);
@@ -1664,24 +1785,42 @@
                 } catch (err) {
                     console.error('创建文件错误:', err);
                     alert('创建文件失败: ' + err.message);
+                } finally {
+                    setButtonLoading(btn, false);
                 }
             });
             
-            document.getElementById('saveBtn').addEventListener('click', saveCurrentFile);
+            // 保存按钮
+            document.getElementById('saveBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('saveBtn');
+                setButtonLoading(btn, true);
+                try {
+                    await saveCurrentFile();
+                } finally {
+                    setButtonLoading(btn, false);
+                }
+            });
+            
+            // 运行按钮
             document.getElementById('runBtn').addEventListener('click', runCode);
+            
+            // 下载按钮
             document.getElementById('downloadBtn').addEventListener('click', downloadCurrentFile);
             
+            // 分享按钮
             document.getElementById('shareBtn').addEventListener('click', () => {
                 if (!currentProject) {
                     alert('请先选择项目');
                     return;
                 }
                 
+                closeAllModals();
                 const shareLink = `${window.location.origin}/code.html?project=${currentProject.id}`;
                 document.getElementById('shareLinkInput').value = shareLink;
                 document.getElementById('shareModal').classList.add('active');
             });
             
+            // 复制链接按钮
             document.getElementById('copyLinkBtn').addEventListener('click', () => {
                 const shareInput = document.getElementById('shareLinkInput');
                 shareInput.select();
@@ -1689,17 +1828,22 @@
                 alert('链接已复制到剪贴板');
             });
             
+            // 下载文件按钮
             document.getElementById('downloadFileBtn').addEventListener('click', downloadCurrentFile);
             
+            // 添加协作者按钮
             document.getElementById('addCollaboratorBtn').addEventListener('click', async () => {
-                const username = document.getElementById('collaboratorInput').value.trim();
-                
-                if (!username) {
-                    alert('请输入用户名');
-                    return;
-                }
+                const btn = document.getElementById('addCollaboratorBtn');
+                setButtonLoading(btn, true);
                 
                 try {
+                    const username = document.getElementById('collaboratorInput').value.trim();
+                    
+                    if (!username) {
+                        alert('请输入用户名');
+                        return;
+                    }
+                    
                     const { data: user, error: userError } = await client
                         .from('users')
                         .select('id')
@@ -1738,13 +1882,27 @@
                 } catch (err) {
                     console.error('添加协作者错误:', err);
                     alert('添加协作者失败: ' + err.message);
+                } finally {
+                    setButtonLoading(btn, false);
                 }
             });
             
+            // 关闭分享模态框
             document.getElementById('closeShareBtn').addEventListener('click', () => {
-                document.getElementById('shareModal').classList.remove('active');
+                closeAllModals();
             });
             
+            // 删除项目模态框的取消按钮
+            document.getElementById('cancelDeleteProjectBtn').addEventListener('click', () => {
+                closeAllModals();
+            });
+            
+            // 删除文件模态框的取消按钮
+            document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
+                closeAllModals();
+            });
+            
+            // 点击模态框外部关闭
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
@@ -1752,233 +1910,49 @@
                     }
                 });
             });
-            document.getElementById('cancelDeleteProjectBtn').addEventListener('click', () => {
-                document.getElementById('deleteProjectModal').classList.remove('active');
-            });
-            
-            // 删除文件模态框的取消按钮
-            document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
-                document.getElementById('deleteFileModal').classList.remove('active');
-            });
         }
 
-        async function showDeleteProjectModal(project) {
-            document.getElementById('deleteProjectName').textContent = project.name;
-            const modal = document.getElementById('deleteProjectModal');
-            
-            // 检查当前用户是否是项目所有者
-            const { data: membership, error } = await client
-                .from('project_members')
-                .select('role')
-                .eq('project_id', project.id)
-                .eq('user_id', currentUser.id)
-                .single();
-            
-            if (error) {
-                console.error('获取成员角色错误:', error);
+        // 页面加载完成事件
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 先获取Supabase配置
+            const configLoaded = await getSupabaseConfig();
+            if (!configLoaded) {
                 return;
             }
-            
-            const isOwner = membership.role === 'owner';
-            
-            // 根据角色修改模态框内容
-            const title = modal.querySelector('.modal-title');
-            const message = modal.querySelector('p');
-            const confirmBtn = modal.querySelector('.modal-btn-confirm');
-            
-            if (isOwner) {
-                title.textContent = '警告：删除项目';
-                title.style.color = '#ef4444';
-                message.innerHTML = `
-                    您即将删除项目 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
-                    <span style="color: #f87171;">
-                        ⚠️ 此操作将永久删除该项目及其所有文件！<br>
-                        ⚠️ 此操作不可撤销！<br>
-                        ⚠️ 所有协作者将失去访问权限！
-                    </span>
-                `;
-                confirmBtn.textContent = '确认删除';
-            } else {
-                title.textContent = '移除项目';
-                title.style.color = '#3b82f6';
-                message.innerHTML = `
-                    您即将从您的项目列表中移除 "<span style="font-weight: bold;">${project.name}</span>"<br><br>
-                    <span style="color: #94a3b8;">
-                        ⚠️ 这只会从您的视图中移除该项目<br>
-                        ⚠️ 项目所有者和其他成员仍可访问<br>
-                        ⚠️ 您可以随时通过邀请链接重新加入
-                    </span>
-                `;
-                confirmBtn.textContent = '确认移除';
+
+            const { username, userId } = cookieUtils.checkAuthCookies();
+            if (!username || !userId) {
+                window.location.href = 'index.html';
+                return;
             }
-            
-            modal.classList.add('active');
-            
-            // 设置确认按钮的事件监听
-            confirmBtn.onclick = async () => {
-                try {
-                    if (isOwner) {
-                        // 所有者执行完整删除
-                        await deleteProjectCompletely(project.id);
-                        alert('项目及其所有文件已成功删除');
-                    } else {
-                        // 成员只是移除自己
-                        await removeSelfFromProject(project.id);
-                        alert('项目已从您的列表中移除');
-                    }
-                    
-                    modal.classList.remove('active');
-                    await loadUserProjects();
-                    
-                    // 重置当前项目和文件
-                    if (currentProject && currentProject.id === project.id) {
-                        currentProject = null;
-                        currentFile = null;
-                        editor.setValue('');
-                        document.getElementById('fileName').textContent = '未选择文件';
-                        document.getElementById('lastEditor').textContent = '';
-                    }
-                    
-                } catch (err) {
-                    console.error('操作失败:', err);
-                    alert('操作失败: ' + err.message);
-                }
-            };
-        }
 
-        async function deleteProjectCompletely(projectId) {
-            // 先删除项目中的所有文件
-            const { error: filesError } = await client
-                .from('files')
-                .delete()
-                .eq('project_id', projectId);
-            
-            if (filesError) throw filesError;
-            
-            // 删除项目成员关系
-            const { error: membersError } = await client
-                .from('project_members')
-                .delete()
-                .eq('project_id', projectId);
-            
-            if (membersError) throw membersError;
-            
-            // 最后删除项目本身
-            const { error: projectError } = await client
-                .from('projects')
-                .delete()
-                .eq('id', projectId);
-            
-            if (projectError) throw projectError;
-        }
+            currentUser = { username, id: userId };
+            document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
 
-        async function removeSelfFromProject(projectId) {
-            const { error } = await client
-                .from('project_members')
-                .delete()
-                .eq('project_id', projectId)
-                .eq('user_id', currentUser.id);
-            
-            if (error) throw error;
-        }
+            initEditor();
+            await loadUserProjects();
+            setupEventListeners();
 
-        async function showDeleteFileModal(file) {
-            document.getElementById('deleteFileName').textContent = file.name;
-            const modal = document.getElementById('deleteFileModal');
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                cookieUtils.clearAuthCookies();
+                clearInterval(saveInterval);
+                clearInterval(checkUpdateInterval);
+                clearInterval(checkFileListInterval);
+                window.location.href = 'index.html';
+            });
             
-            // 检查当前用户是否是文件创建者或项目所有者
-            const isCreator = file.created_by === currentUser.id;
-            let isOwner = false;
+            const loading = document.getElementById('loadingIndicator2');
+            loading.classList.add('hidden2');
             
-            if (!isCreator && currentProject) {
-                const { data: membership, error } = await client
-                    .from('project_members')
-                    .select('role')
-                    .eq('project_id', currentProject.id)
-                    .eq('user_id', currentUser.id)
-                    .single();
-                
-                if (!error) {
-                    isOwner = membership.role === 'owner';
-                }
-            }
-            
-            const canDeletePermanently = isCreator || isOwner;
-            
-            // 根据权限修改模态框内容
-            const title = modal.querySelector('.modal-title');
-            const message = modal.querySelector('p');
-            const confirmBtn = modal.querySelector('.modal-btn-confirm');
-            
-            if (canDeletePermanently) {
-                title.textContent = '删除文件';
-                title.style.color = '#ef4444';
-                message.innerHTML = `
-                    确定要永久删除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
-                    <span style="color: #f87171;">⚠️ 此操作不可恢复！</span>
-                `;
-                confirmBtn.textContent = '确认删除';
-            } else {
-                title.textContent = '移除文件';
-                title.style.color = '#3b82f6';
-                message.innerHTML = `
-                    确定要从您的视图中移除文件 "<span style="font-weight: bold;">${file.name}</span>" 吗？<br>
-                    <span style="color: #94a3b8;">
-                        ⚠️ 这只会从您的视图中移除该文件<br>
-                        ⚠️ 项目所有者和其他成员仍可访问
-                    </span>
-                `;
-                confirmBtn.textContent = '确认移除';
-            }
-            
-            modal.classList.add('active');
-            
-            // 设置确认按钮的事件监听
-            confirmBtn.onclick = async () => {
-                try {
-                    if (canDeletePermanently) {
-                        // 执行完整删除
-                        const { error } = await client
-                            .from('files')
-                            .delete()
-                            .eq('id', file.id);
-                        
-                        if (error) throw error;
-                        
-                        alert('文件已永久删除');
-                    } else {
-                        // 成员只是从自己的视图中"移除"文件
-                        // 实际上我们不需要做任何数据库操作，只需从本地列表中移除
-                        files = files.filter(f => f.id !== file.id);
-                        renderFileList();
-                        alert('文件已从您的列表中移除');
-                    }
-                    
-                    modal.classList.remove('active');
-                    
-                    // 如果删除的是当前打开的文件，重置编辑器
-                    if (currentFile && currentFile.id === file.id) {
-                        currentFile = null;
-                        editor.setValue('');
-                        document.getElementById('fileName').textContent = '未选择文件';
-                        document.getElementById('lastEditor').textContent = '';
-                    }
-                    
-                } catch (err) {
-                    console.error('操作失败:', err);
-                    alert('操作失败: ' + err.message);
-                }
-            };
-        }
+            const mainLoading = document.getElementById('loadingIndicator');
+            mainLoading.classList.add('hidden');
+        });
 
+        // 页面关闭前确认
         window.onbeforeunload = function() {
             if (currentFile && currentFile.hasChanges) {
                 return '您有未保存的更改，确定离开吗？';
             }
-        };
-        window.onload = function() {
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.add('hidden');
         };
     </script>
 </body>
