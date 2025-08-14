@@ -1599,8 +1599,7 @@
             saveInterval = setInterval(() => {
                 if (currentFile && currentFile.hasChanges) {
                     if (save === 1) {
-                        saveCurrentFile();
-                    } else {
+                        saveCurrentFile()
                         currentFile.hasChanges = false;
                     }
                 }
@@ -1610,7 +1609,6 @@
                 if (currentFile && !currentFile.hasChanges) {
                     if (refresh === 1) {
                         checkFileUpdates();
-                        currentFile.hasChanges = false;
                     }
                 }
             }, 2000);
@@ -1640,7 +1638,7 @@
                     if (file.last_updated_by !== currentUser.id) {
                         applyRemoteChanges(file.content, file.last_updated_by);
                     }
-                    
+                    saveCurrentFile()
                     currentFile.content = file.content;
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
