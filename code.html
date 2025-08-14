@@ -1876,11 +1876,11 @@
                     if (isOwner) {
                         // 所有者执行完整删除
                         await deleteProjectCompletely(project.id);
-                        alert('项目及其所有文件已成功删除');
+                        loadProjectFiles();
                     } else {
                         // 成员只是移除自己
                         await removeSelfFromProject(project.id);
-                        alert('项目已从您的列表中移除');
+                        loadProjectFiles();
                     }
                     
                     modal.classList.remove('active');
