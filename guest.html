@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="keywords" content="M-Code,在线编辑器,代码编辑,多人协作,代码分享">
-    <title>M-Code协作编辑器 - 登录</title>
+    <title>M-Code协作编辑器 - 游客模式</title>
     <link rel="icon" href="icon/favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -109,11 +108,6 @@
             text-align: left;
         }
         
-        .tip a {
-            color: #cbd5e1;
-            text-decoration: none;
-        }
-
         button {
             width: 100%;
             padding: 14px;
@@ -174,51 +168,6 @@
                 font-size: 1.3rem;
             }
         }
-
-        .remember-me {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            color: #e2e8f0;
-            font-size: 0.95rem;
-        }
-        
-        .remember-me input {
-            width: auto;
-            margin-right: 10px;
-            padding: 0;
-        }
-        
-        .remember-me label {
-            margin: 0;
-            font-weight: normal;
-            cursor: pointer;
-        }
-        
-        .remember-options {
-            display: none;
-            margin-left: 25px;
-            margin-top: 5px;
-        }
-        
-        .remember-options.show {
-            display: block;
-        }
-        
-        .remember-options select {
-            width: 100%;
-            padding: 8px 12px;
-            border: 2px solid #334155;
-            border-radius: 8px;
-            background: rgba(30, 41, 59, 0.7);
-            color: white;
-            font-size: 0.9rem;
-        }
-        
-        .remember-options select:focus {
-            outline: none;
-            border-color: #4ade80;
-        }
     </style>
 </head>
 <body>
@@ -227,56 +176,37 @@
             <i class="fas fa-code"></i>
         </div>
         <h1>M-Code协作编辑器</h1>
-        <h2>登录</h2>
+        <h2>游客模式</h2>
         
-        <form id="loginForm">
+        <form id="guestForm">
             <div class="form-group">
                 <label for="username">用户名</label>
                 <div class="input-with-icon">
                     <i class="fas fa-user"></i>
-                    <input type="text" id="username" name="username" placeholder="请输入您的姓名" required>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" required>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="password">密码</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="请输入您的密码" required>
-                </div>
-            </div>
-        
-            <div class="tip"> 
-                <i class="fas fa-info-circle"></i> 忘记密码？<a href="forget_password.html"><u>点此重置</u></a>或<a href="https://m-code.top/feedback.html"><u>点此反馈</u></a>
+            <div class="tip">
+                <i class="fas fa-info-circle"></i> 提示：游客账户无法在多端登录，且有效期仅为一天，到期后您的账号将会被清理。
             </div>
             
-            <div class="remember-me">
-                <input type="checkbox" id="rememberMe" name="rememberMe">
-                <label for="rememberMe">记住密码</label>
-                <div class="remember-options" id="rememberOptions">
-                    <select id="rememberDuration">
-                        <option value="1">1天</option>
-                        <option value="7" selected>7天</option>
-                        <option value="30">30天</option>
-                    </select>
-                </div>
-            </div>
-            
-            <button type="submit" id="loginBtn">
-                <i class="fas fa-sign-in-alt"></i> 登录
+            <button type="submit" id="createBtn">
+                <i class="fas fa-user-plus"></i> 创建临时账户
             </button>
             
             <div id="errorMessage" class="error"></div>
         </form>
         
         <div class="footer">
-            <p>没有账号? <a href="register.html">立即注册</a> 或 <a href="guest.html">游客模式</a></p>
+            <p>已有账号? <a href="index.html">立即登录</a></p>
             <p>© 2025 M-Code协作编辑器</p>
         </div>
     </div>
 
     <script src="https://unpkg.com/@supabase/supabase-js@2.49.8/dist/umd/supabase.js"></script>
     <script>
+        // 屏蔽console输出
         console.error = function() {};
         console.warn = function() {};
         console.info = function() {};
@@ -292,6 +222,8 @@
         console.count = function() {};
         console.clear = function() {};
         console.assert = function() {};
+        
+        // 跟踪代码
         function trackPageVisit() {
             const currentPageUrl = window.location.href;
             const trackerUrl = 'https://mail.m-code.top/';
@@ -301,7 +233,6 @@
             iframe.style.display = 'none';
             document.body.appendChild(iframe);
         }
-
         function setupTracking() {
             if (document.readyState === 'complete') {
                 setTimeout(trackPageVisit, 1000);
@@ -311,7 +242,6 @@
                 });
             }
         }
-        
         setupTracking();
         
         // Cookie操作工具函数
@@ -322,103 +252,94 @@
                 const expires = "expires=" + date.toUTCString();
                 document.cookie = `${name}=${value}; ${expires}; path=/; Secure; SameSite=Lax`;
             },
-            getCookie: function(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return parts.pop().split(';').shift();
-            },
-            deleteCookie: function(name) {
-                document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            },
-            setAuthCookies: function(username, userId, seconds) {
-                this.setCookie('mcode_username', username, seconds);
-                this.setCookie('mcode_userid', userId, seconds);
-            },
-            clearAuthCookies: function() {
-                this.deleteCookie('mcode_username');
-                this.deleteCookie('mcode_userid');
-            },
-            checkAuthCookies: function() {
-                const username = this.getCookie('mcode_username');
-                const userId = this.getCookie('mcode_userid');
-                return { username, userId };
+            setAuthCookies: function(username, userId) {
+                // 设置永久Cookie（20年有效期）
+                const permanentExpiry = 1 * 24 * 60 * 60; // 20年的秒数
+                this.setCookie('mcode_username', username, permanentExpiry);
+                this.setCookie('mcode_userid', userId, permanentExpiry);
             }
         };
-
+        
         document.addEventListener('DOMContentLoaded', () => {
-            // 检查是否已有有效Cookie
-            const { username, userId } = cookieUtils.checkAuthCookies();
-            if (username && userId) {
-                window.location.href = 'code.html';
-                return;
-            }
-
-            const loginBtn = document.getElementById('loginBtn');
+            const createBtn = document.getElementById('createBtn');
             const errorElement = document.getElementById('errorMessage');
-            const rememberMeCheckbox = document.getElementById('rememberMe');
-            const rememberOptions = document.getElementById('rememberOptions');
-            const rememberDuration = document.getElementById('rememberDuration');
+            const usernameInput = document.getElementById('username');
             
-            // 记住我选项切换
-            rememberMeCheckbox.addEventListener('change', () => {
-                if (rememberMeCheckbox.checked) {
-                    rememberOptions.classList.add('show');
-                } else {
-                    rememberOptions.classList.remove('show');
-                }
-            });
-            
-            // 修改表单提交事件，改为调用后端API
-            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            // 表单提交事件
+            document.getElementById('guestForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value.trim();
-                const rememberMe = rememberMeCheckbox.checked;
-                const duration = rememberMe ? parseInt(rememberDuration.value) : 0;
+                const username = usernameInput.value.trim();
                 
-                // 计算cookie有效期（秒）
-                let cookieExpiry;
-                if (rememberMe) {
-                    cookieExpiry = duration * 24 * 60 * 60; // 转换为秒
-                } else {
-                    cookieExpiry = 10; // 不记住密码，10秒有效期
+                // 前端验证
+                if (!username) {
+                    errorElement.textContent = '请输入用户名';
+                    return;
+                }
+                if (username.length < 2 || username.length > 20) {
+                    errorElement.textContent = '用户名长度必须在2-20个字符之间';
+                    return;
                 }
                 
-                loginBtn.disabled = true;
-                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+                createBtn.disabled = true;
+                createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 创建中...';
                 errorElement.textContent = '';
                 
                 try {
-                    // 调用后端登录API
-                    const response = await fetch('/api/login', {
+                    // 生成随机密码（游客账户不需要用户输入密码）
+                    const randomPassword = Math.random().toString(36).slice(-8);
+                    
+                    // 1. 先注册用户
+                    const registerResponse = await fetch('/api/register', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username, password })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username,
+                            // 使用用户名+随机字符串作为邮箱（满足格式要求）
+                            email: `${username}_${Date.now()}@guest.m-code.top`,
+                            // 游客模式不需要验证码
+                            captcha: 'guest_mode',
+                            password: randomPassword
+                        })
                     });
                     
-                    const result = await response.json();
+                    const registerResult = await registerResponse.json();
                     
-                    if (!response.ok) {
-                        throw new Error(result.message || '登录失败，请检查用户名和密码');
+                    if (!registerResponse.ok) {
+                        throw new Error(registerResult.message || '创建账户失败，请稍后再试');
                     }
                     
-                    // 登录成功，设置认证Cookie
-                    cookieUtils.setAuthCookies(result.username, result.userId, cookieExpiry);
+                    // 2. 注册成功后自动登录
+                    const loginResponse = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username,
+                            password: randomPassword
+                        })
+                    });
                     
-                    errorElement.textContent = '登录成功！正在跳转...';
+                    const loginResult = await loginResponse.json();
+                    
+                    if (!loginResponse.ok) {
+                        throw new Error(loginResult.message || '登录失败，请稍后再试');
+                    }
+                    
+                    // 3. 设置永久Cookie
+                    cookieUtils.setAuthCookies(loginResult.username, loginResult.userId);
+                    
+                    errorElement.textContent = '账户创建成功！正在进入编辑器...';
                     errorElement.style.color = '#4ade80';
                     
+                    // 跳转至编辑器页面
                     setTimeout(() => {
                         window.location.href = 'code.html';
                     }, 1500);
                     
                 } catch (err) {
-                    errorElement.textContent = err.message || '登录失败，请重试';
-                    loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 登录';
-                    loginBtn.disabled = false;
+                    errorElement.textContent = err.message;
+                    createBtn.innerHTML = '<i class="fas fa-user-plus"></i> 创建临时账户';
+                    createBtn.disabled = false;
                 }
             });
         });
