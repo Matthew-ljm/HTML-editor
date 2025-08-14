@@ -1603,11 +1603,12 @@
                         currentFile.hasChanges = false;
                     }
                 }
-            }, 500);
+            }, 100);
 
             checkUpdateInterval = setInterval(() => {
                 if (currentFile && !currentFile.hasChanges) {
                     if (refresh === 1) {
+                        saveCurrentFile()
                         checkFileUpdates();
                     }
                 }
@@ -1638,7 +1639,6 @@
                     if (file.last_updated_by !== currentUser.id) {
                         applyRemoteChanges(file.content, file.last_updated_by);
                     }
-                    saveCurrentFile()
                     currentFile.content = file.content;
                     currentFile.updated_at = file.updated_at;
                     currentFile.last_updated_by = file.last_updated_by;
