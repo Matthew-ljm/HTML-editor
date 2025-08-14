@@ -333,10 +333,13 @@
             setAuthCookies: function(username, userId, seconds) {
                 this.setCookie('mcode_username', username, seconds);
                 this.setCookie('mcode_userid', userId, seconds);
+                // 清除游客类型cookie
+                this.deleteCookie('mcode_usertype');
             },
             clearAuthCookies: function() {
                 this.deleteCookie('mcode_username');
                 this.deleteCookie('mcode_userid');
+                this.deleteCookie('mcode_usertype');
             },
             checkAuthCookies: function() {
                 const username = this.getCookie('mcode_username');
