@@ -1057,10 +1057,6 @@
         let collaborators = [];
         let isSyncing = false;
         let saveInterval = null;
-        let checkUpdateInterval = null;
-        let checkFileListInterval = null;
-        let lastUpdateTime = null;
-        let lastFileListUpdateTime = null;
         let live = 0;
         let save = 0;
         let refresh = 0;
@@ -1201,24 +1197,9 @@
 
             if (!currentProject) return;
 
-            // 文件内容更新订阅
+            // 统一文件变更订阅（合并内容和列表更新）
             realtimeChannel = client
-                .channel('file_updates')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: 'UPDATE',
-                        schema: 'public',
-                        table: 'files',
-                        filter: `id=eq.${currentFile?.id || ''}`
-                    },
-                    (payload) => handleFileUpdate(payload.new)
-                )
-                .subscribe();
-
-            // 文件列表更新订阅
-            client
-                .channel('file_list_updates')
+                .channel('unified_file_updates')
                 .on(
                     'postgres_changes',
                     {
@@ -1227,9 +1208,28 @@
                         table: 'files',
                         filter: `project_id=eq.${currentProject.id}`
                     },
-                    () => loadProjectFiles()
+                    (payload) => {
+                        // 当前打开的文件被更新
+                        if (payload.eventType === 'UPDATE' && currentFile && payload.new.id === currentFile.id) {
+                            handleFileUpdate(payload.new);
+                        }
+                        // 文件列表变更（包括新增、删除和其他文件更新）
+                        loadProjectFiles();
+                    }
                 )
-                .subscribe();
+                .on('system', {}, (payload) => {
+                    if (payload.status === 'ERROR') {
+                        console.error('Realtime订阅错误:', payload);
+                        // 尝试重新连接
+                        setTimeout(setupRealtimeSubscriptions, 5000);
+                    }
+                })
+                .subscribe((status) => {
+                    if (status === 'CLOSED') {
+                        console.log('Realtime连接关闭，尝试重新连接');
+                        setTimeout(setupRealtimeSubscriptions, 1000);
+                    }
+                });
 
             // Presence 订阅
             presenceChannel = client.channel('presence:' + currentProject.id, {
@@ -1347,8 +1347,6 @@
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 cookieUtils.clearAuthCookies();
                 clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
                 if (realtimeChannel) client.removeChannel(realtimeChannel);
                 if (presenceChannel) client.removeChannel(presenceChannel);
                 window.location.href = 'index.html';
@@ -1661,8 +1659,8 @@
         async function selectProject(projectId) {
             try {
                 clearInterval(saveInterval);
-                clearInterval(checkUpdateInterval);
-                clearInterval(checkFileListInterval);
+                if (realtimeChannel) client.removeChannel(realtimeChannel);
+                if (presenceChannel) client.removeChannel(presenceChannel);
 
                 const { data: project, error: projectError } = await client
                     .from('projects')
@@ -1724,24 +1722,11 @@
 
         function setupTimers() {
             saveInterval = setInterval(() => {
-                if (currentFile && currentFile.hasChanges) {
-                    if (save === 1) {
-                        saveCurrentFile();
-                        currentFile.hasChanges = false;
-                    }
+                if (currentFile && currentFile.hasChanges && save === 1) {
+                    saveCurrentFile();
+                    currentFile.hasChanges = false;
                 }
             }, 100);
-
-            // 不再需要检查更新的定时器，因为使用实时订阅
-            checkUpdateInterval = setInterval(() => {}, 2000);
-            
-            checkFileListInterval = setInterval(() => {
-                if (currentProject) {
-                    if (live === 1 || refresh === 1) {
-                        loadProjectFiles();
-                    }
-                }
-            }, 60000);
         }
 
         function applyRemoteChanges(content, lastUpdatedBy) {
