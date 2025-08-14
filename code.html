@@ -1994,23 +1994,48 @@
                     }
                 });
             });
-            
-            document.getElementById('cancelDeleteProjectBtn').addEventListener('click', () => {
-                document.getElementById('deleteProjectModal').classList.remove('active');
-            });
-            
-            document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
-                document.getElementById('deleteFileModal').classList.remove('active');
+
+            // 文件操作菜单事件处理
+            document.getElementById('fileActionsMenu').addEventListener('click', async (e) => {
+                const action = e.target.closest('.action-item')?.dataset.action;
+                if (!action || !currentActionFile) return;
+
+                const menu = document.getElementById('fileActionsMenu');
+                menu.classList.remove('active');
+
+                switch (action) {
+                    case 'rename':
+                        document.getElementById('newFileNameInput').value = currentActionFile.name;
+                        document.getElementById('renameFileModal').classList.add('active');
+                        break;
+                    case 'details':
+                        showFileDetails(currentActionFile);
+                        break;
+                    case 'delete':
+                        await showDeleteFileModal(currentActionFile);
+                        break;
+                }
             });
 
-            document.getElementById('closeDetailsBtn').addEventListener('click', () => {
-                document.getElementById('fileDetailsModal').classList.remove('active');
+            // 项目操作菜单事件处理
+            document.getElementById('projectActionsMenu').addEventListener('click', async (e) => {
+                const action = e.target.closest('.action-item')?.dataset.action;
+                if (!action || !currentActionProject) return;
+
+                const menu = document.getElementById('projectActionsMenu');
+                menu.classList.remove('active');
+
+                switch (action) {
+                    case 'details':
+                        showProjectDetails(currentActionProject);
+                        break;
+                    case 'delete':
+                        await showDeleteProjectModal(currentActionProject);
+                        break;
+                }
             });
 
-            document.getElementById('cancelRenameBtn').addEventListener('click', () => {
-                document.getElementById('renameFileModal').classList.remove('active');
-            });
-
+            // 重命名文件确认按钮事件
             document.getElementById('confirmRenameBtn').addEventListener('click', async function() {
                 const btn = this;
                 setButtonLoading(btn, true);
@@ -2023,31 +2048,85 @@
                     return;
                 }
                 
-                const success = await renameFile(currentActionFile.id, newName);
-                if (success) {
+                try {
+                    await renameFile(currentActionFile.id, newName);
                     document.getElementById('renameFileModal').classList.remove('active');
+                    document.getElementById('newFileNameInput').value = '';
+                } catch (err) {
+                    console.error('重命名文件错误:', err);
+                    alert('重命名文件失败: ' + err.message);
+                } finally {
+                    setButtonLoading(btn, false);
                 }
-                
-                setButtonLoading(btn, false);
             });
 
+            // 取消重命名按钮事件
+            document.getElementById('cancelRenameBtn').addEventListener('click', () => {
+                document.getElementById('renameFileModal').classList.remove('active');
+            });
+
+            // 关闭文件详情按钮事件
+            document.getElementById('closeDetailsBtn').addEventListener('click', () => {
+                document.getElementById('fileDetailsModal').classList.remove('active');
+            });
+
+            // 关闭项目详情按钮事件
+            document.getElementById('closeProjectDetailsBtn').addEventListener('click', () => {
+                document.getElementById('projectDetailsModal').classList.remove('active');
+            });
+
+            // 确认删除文件按钮事件
+            document.getElementById('confirmDeleteFileBtn').addEventListener('click', async function() {
+                const btn = this;
+                setButtonLoading(btn, true);
+                
+                try {
+                    const { error } = await client
+                        .from('files')
+                        .delete()
+                        .eq('id', currentActionFile.id);
+                    
+                    if (error) throw error;
+                    
+                    document.getElementById('deleteFileModal').classList.remove('active');
+                    await loadProjectFiles();
+                    
+                    // 如果删除的是当前打开的文件，清空编辑器
+                    if (currentFile && currentFile.id === currentActionFile.id) {
+                        currentFile = null;
+                        editor.setValue('');
+                        document.getElementById('fileName').textContent = '未选择文件';
+                        document.getElementById('lastEditor').textContent = '';
+                    }
+                } catch (err) {
+                    console.error('删除文件错误:', err);
+                    alert('删除文件失败: ' + err.message);
+                } finally {
+                    setButtonLoading(btn, false);
+                }
+            });
+
+            // 取消删除文件按钮事件
+            document.getElementById('cancelDeleteFileBtn').addEventListener('click', () => {
+                document.getElementById('deleteFileModal').classList.remove('active');
+            });
+
+            // 确认删除项目按钮事件
             document.getElementById('confirmDeleteProjectBtn').addEventListener('click', async function() {
                 const btn = this;
                 setButtonLoading(btn, true);
                 
                 try {
-                    const { data: membership, error } = await client
+                    const { data: membership, error: roleError } = await client
                         .from('project_members')
                         .select('role')
                         .eq('project_id', currentActionProject.id)
                         .eq('user_id', currentUser.id)
                         .single();
                     
-                    if (error) throw error;
+                    if (roleError) throw roleError;
                     
-                    const isOwner = membership.role === 'owner';
-                    
-                    if (isOwner) {
+                    if (membership.role === 'owner') {
                         await deleteProjectCompletely(currentActionProject.id);
                     } else {
                         await removeSelfFromProject(currentActionProject.id);
@@ -2056,147 +2135,27 @@
                     document.getElementById('deleteProjectModal').classList.remove('active');
                     await loadUserProjects();
                     
+                    // 如果删除的是当前项目，清空文件列表和编辑器
                     if (currentProject && currentProject.id === currentActionProject.id) {
                         currentProject = null;
+                        files = [];
                         currentFile = null;
                         editor.setValue('');
                         document.getElementById('fileName').textContent = '未选择文件';
                         document.getElementById('lastEditor').textContent = '';
-                    }
-                    
-                } catch (err) {
-                    console.error('操作失败:', err);
-                    alert('操作失败: ' + err.message);
-                } finally {
-                    setButtonLoading(btn, false);
-                }
-            });
-
-            document.getElementById('confirmDeleteFileBtn').addEventListener('click', async function() {
-                const btn = this;
-                setButtonLoading(btn, true);
-                
-                try {
-                    const isCreator = currentActionFile.created_by === currentUser.id;
-                    let isOwner = false;
-                    
-                    if (!isCreator && currentProject) {
-                        const { data: membership, error } = await client
-                            .from('project_members')
-                            .select('role')
-                            .eq('project_id', currentProject.id)
-                            .eq('user_id', currentUser.id)
-                            .single();
-                        
-                        if (!error) {
-                            isOwner = membership.role === 'owner';
-                        }
-                    }
-                    
-                    const canDeletePermanently = isCreator || isOwner;
-                    
-                    if (canDeletePermanently) {
-                        const { error } = await client
-                            .from('files')
-                            .delete()
-                            .eq('id', currentActionFile.id);
-                        
-                        if (error) throw error;
-                        
-                        alert('文件已永久删除');
-                    } else {
-                        files = files.filter(f => f.id !== currentActionFile.id);
                         renderFileList();
-                        alert('文件已从您的列表中移除');
                     }
-                    
-                    document.getElementById('deleteFileModal').classList.remove('active');
-                    
-                    if (currentFile && currentFile.id === currentActionFile.id) {
-                        currentFile = null;
-                        editor.setValue('');
-                        document.getElementById('fileName').textContent = '未选择文件';
-                        document.getElementById('lastEditor').textContent = '';
-                    }
-                    
                 } catch (err) {
-                    console.error('操作失败:', err);
-                    alert('操作失败: ' + err.message);
+                    console.error('删除项目错误:', err);
+                    alert('删除项目失败: ' + err.message);
                 } finally {
                     setButtonLoading(btn, false);
                 }
             });
 
-            document.getElementById('closeProjectDetailsBtn').addEventListener('click', () => {
-                document.getElementById('projectDetailsModal').classList.remove('active');
-            });
-
-            document.getElementById('cancelRenameProjectBtn').addEventListener('click', () => {
-                document.getElementById('renameProjectModal').classList.remove('active');
-            });
-
-            document.getElementById('confirmRenameProjectBtn').addEventListener('click', async function() {
-                const btn = this;
-                setButtonLoading(btn, true);
-                
-                const newName = document.getElementById('newProjectNameInput').value.trim();
-                
-                if (!newName) {
-                    alert('请输入新项目名称');
-                    setButtonLoading(btn, false);
-                    return;
-                }
-                
-                const success = await renameProject(currentActionProject.id, newName);
-                if (success) {
-                    document.getElementById('renameProjectModal').classList.remove('active');
-                }
-                
-                setButtonLoading(btn, false);
-            });
-
-            // 项目操作菜单项点击事件
-            document.querySelectorAll('#projectActionsMenu .action-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    const action = e.currentTarget.dataset.action;
-                    document.getElementById('projectActionsMenu').classList.remove('active');
-                    
-                    switch(action) {
-                        case 'rename':
-                            document.getElementById('newProjectNameInput').value = currentActionProject.name;
-                            document.getElementById('renameProjectModal').classList.add('active');
-                            document.getElementById('newProjectNameInput').focus();
-                            break;
-                        case 'details':
-                            showProjectDetails(currentActionProject);
-                            break;
-                        case 'delete':
-                            showDeleteProjectModal(currentActionProject);
-                            break;
-                    }
-                });
-            });
-
-            // 文件操作菜单项点击事件
-            document.querySelectorAll('#fileActionsMenu .action-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    const action = e.currentTarget.dataset.action;
-                    document.getElementById('fileActionsMenu').classList.remove('active');
-                    
-                    switch(action) {
-                        case 'rename':
-                            document.getElementById('newFileNameInput').value = currentActionFile.name;
-                            document.getElementById('renameFileModal').classList.add('active');
-                            document.getElementById('newFileNameInput').focus();
-                            break;
-                        case 'details':
-                            showFileDetails(currentActionFile);
-                            break;
-                        case 'delete':
-                            showDeleteFileModal(currentActionFile);
-                            break;
-                    }
-                });
+            // 取消删除项目按钮事件
+            document.getElementById('cancelDeleteProjectBtn').addEventListener('click', () => {
+                document.getElementById('deleteProjectModal').classList.remove('active');
             });
         }
 
